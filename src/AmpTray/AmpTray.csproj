@@ -23,7 +23,7 @@
 
   <PropertyGroup>
     <!-- Overridden by build.ps1 / CI with -p:Version=... -->
-    <Version>0.0.2</Version>
+    <Version>0.0.3</Version>
     <Product>AmpTray for WireView Pro II</Product>
     <AssemblyTitle>AmpTray</AssemblyTitle>
     <Authors>borexola</Authors>
