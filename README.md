@@ -2,9 +2,9 @@
 
 An unofficial, read-only desktop widget and tray icon for the Thermal Grizzly WireView Pro II 12V-2x6 power meter, with NVIDIA GPU stats alongside. Not affiliated with Thermal Grizzly or NVIDIA.
 
-<p align="center">
-  <img src="docs/widget-compact.png" alt="Compact view" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/widget-expanded.png" alt="Expanded view" />
+<p align="center">  
+  <img src="docs/widget-expanded.png" alt="Expanded view" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/widget-compact.png" alt="Compact view" />
 </p>
 
 ## What it shows
