@@ -32,6 +32,7 @@ public partial class WidgetWindow : Window
     private readonly TextBlock[] _faultNames = new TextBlock[6];
     private readonly TextBlock[] _pinHeaderCells = new TextBlock[PinHeaderKeys.Length];
     private bool _expanded, _topmost = true, _clickThrough, _opaqueOnHover = true;
+    private string? _pendingMonitor;
     private double _baseOpacity = 1;
     private SensorSnapshot? _last;
     private SessionStats? _stats;
@@ -117,6 +118,43 @@ public partial class WidgetWindow : Window
             Left -= e.NewSize.Width - e.PreviousSize.Width;
             Moved?.Invoke();
         }
+    }
+
+    // ===== Monitors =====
+
+    /// <summary>Device name of the monitor the widget is on right now (e.g. \\.\DISPLAY2), or null before it is shown.</summary>
+    public string? CurrentMonitor()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return null;
+        return System.Windows.Forms.Screen.FromHandle(hwnd).DeviceName;
+    }
+
+    /// <summary>
+    /// Puts the widget on the given monitor if it is not already there: top-right corner of its work area,
+    /// positioned in physical pixels so monitors with different scaling are handled correctly.
+    /// </summary>
+    public void MoveToMonitor(string deviceName)
+    {
+        var target = System.Windows.Forms.Screen.AllScreens.FirstOrDefault(s => s.DeviceName == deviceName);
+        if (target == null) return; // unplugged: keep the current position
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero || !IsLoaded)
+        {
+            // Called before the window exists (startup): do it once it has been laid out.
+            if (_pendingMonitor == null) Loaded += (_, _) => { var m = _pendingMonitor; _pendingMonitor = null; if (m != null) MoveToMonitor(m); };
+            _pendingMonitor = deviceName;
+            return;
+        }
+        if (System.Windows.Forms.Screen.FromHandle(hwnd).DeviceName == deviceName) return;
+
+        var source = PresentationSource.FromVisual(this);
+        double scale = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
+        int widthPx = (int)Math.Round(ActualWidth * scale);
+        var area = target.WorkingArea;
+        Native.SetWindowPos(hwnd, IntPtr.Zero, area.Right - widthPx - 12, area.Top + 12, 0, 0,
+            Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE);
+        Moved?.Invoke();
     }
 
     // ===== Window behaviour =====

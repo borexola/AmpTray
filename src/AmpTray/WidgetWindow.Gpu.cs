@@ -32,6 +32,25 @@ public partial class WidgetWindow
     private double? _fps;
     private string? _fpsProcess;
     private bool _fpsServiceRunning;
+    private bool _showTemp = true, _showFps = true;
+
+    /// <summary>Which parts of the top bar are shown; the bar disappears when both are off.</summary>
+    public void SetTopBar(bool gpuTemp, bool fps)
+    {
+        _showTemp = gpuTemp;
+        _showFps = fps;
+        TempSlot.Visibility = Vis(gpuTemp);
+        FpsSlot.Visibility = Vis(fps);
+        FpsSlot.Margin = new Thickness(0, 0, gpuTemp ? 12 : 0, 0);
+        UpdateStripVisibility();
+    }
+
+    private void UpdateStripVisibility()
+    {
+        bool show = _lastGpu != null && (_showTemp || _showFps);
+        GpuStrip.Visibility = Vis(show);
+        GpuStripDivider.Visibility = Vis(show);
+    }
 
     /// <summary>Frames per second of the foreground (or busiest) process, measured by the background service.</summary>
     public void ShowFps(double? fps, string? processName, bool serviceRunning)
@@ -74,8 +93,7 @@ public partial class WidgetWindow
         _gpuStats = stats;
 
         bool has = g != null;
-        GpuStrip.Visibility = Vis(has);
-        GpuStripDivider.Visibility = Vis(has);
+        UpdateStripVisibility();
         GpuNone.Visibility = Vis(!has);
         GpuBars.Visibility = Vis(has);
         if (g == null)

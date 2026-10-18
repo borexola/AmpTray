@@ -1,4 +1,13 @@
 {
+  "Move the widget to this monitor. Dragging it onto another monitor updates the choice.": "Déplacer le widget sur cet écran. Le faire glisser sur un autre écran met à jour le choix.",
+  "Shown in both views when an NVIDIA GPU is present.": "Affichée dans les deux vues lorsqu'un GPU NVIDIA est présent.",
+  "GPU temperature at the top": "Température du GPU en haut",
+  "Frames per second of the foreground game, measured by the background service": "Images par seconde du jeu au premier plan, mesurées par le service en arrière-plan",
+  "Monitor": "Écran",
+  "primary": "principal",
+  "Gauge with the GPU (and memory) temperature next to the GPU name": "Jauge avec la température du GPU (et de la mémoire) à côté du nom du GPU",
+  "Top bar": "Barre du haut",
+  "FPS counter at the top": "Compteur FPS en haut",
   "Frames per second presented by {0}": "Images par seconde présentées par {0}",
   "The FPS counter needs the background service (Settings → Window → Background monitoring)": "Le compteur FPS nécessite le service en arrière-plan (Paramètres → Fenêtre → Surveillance en arrière-plan)",
   "No game is presenting frames right now": "Aucun jeu n'affiche d'images en ce moment",

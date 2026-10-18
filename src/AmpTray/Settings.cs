@@ -26,7 +26,10 @@ public sealed class Settings
     public bool ShowGraph { get; set; } = true;
     public bool ShowFaults { get; set; } = true;
     public bool ShowGpu { get; set; } = true;
+    public bool ShowGpuTemp { get; set; } = true;  // top bar: GPU (and memory) temperature
+    public bool ShowFps { get; set; } = true;      // top bar: FPS counter (needs the background service)
     public int GpuIndex { get; set; } // which NVIDIA GPU, when there are several
+    public string Monitor { get; set; } = "";      // display device name the widget lives on; "" = wherever it was left
     public int GraphWindowSeconds { get; set; } = 300;
 
     // Theme

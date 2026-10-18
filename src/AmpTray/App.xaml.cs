@@ -207,7 +207,7 @@ public partial class App : System.Windows.Application, ISettingsHost
 
     private void UpdateFps()
     {
-        if (_window == null || !_window.IsVisible) return;
+        if (_window == null || !_window.IsVisible || !_settings.ShowFps) return;
         var snap = FpsSnapshot.TryRead();
         FpsEntry? pick = null;
         if (snap != null && snap.Processes.Count > 0)
@@ -316,6 +316,8 @@ public partial class App : System.Windows.Application, ISettingsHost
         // Panel choices apply to the compact view; expanded always shows everything.
         if (s.Expanded) _window.SetPanels(true, true, true, true, true);
         else _window.SetPanels(s.ShowWires, s.ShowTemps, s.ShowGraph, s.ShowFaults, s.ShowGpu);
+        _window.SetTopBar(s.ShowGpuTemp, s.ShowFps);
+        if (!string.IsNullOrEmpty(s.Monitor)) _window.MoveToMonitor(s.Monitor);
         _window.SetGraph(_history, s.GraphWindowSeconds, s.PollMs);
         _window.SetGpuGraph(_gpuHistory);
         _window.SetExpanded(s.Expanded);
@@ -682,6 +684,9 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (_window == null) return;
         _settings.Left = _window.Left;
         _settings.Top = _window.Top;
+        // Dragging the widget to another monitor makes that the chosen monitor.
+        string? monitor = _window.CurrentMonitor();
+        if (monitor != null) _settings.Monitor = monitor;
         _settings.Save();
     }
 

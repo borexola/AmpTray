@@ -43,14 +43,16 @@
                                            VerticalAlignment="Center" />
                                 <TextBlock Text="FPS" FontSize="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="4,0,0,0" />
                             </StackPanel>
-                            <local:ArcGauge x:Name="GpuGauge" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="GPU" FontSize="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="0,0,4,0" />
-                            <TextBlock x:Name="GpuTempText" FontSize="13.5" FontWeight="SemiBold" FontFamily="{StaticResource DisplayFont}"
-                                       VerticalAlignment="Center" />
-                            <TextBlock x:Name="GpuMemTempLabel" Text="MEM" FontSize="10" Foreground="{DynamicResource TextMuted}"
-                                       VerticalAlignment="Center" Margin="10,0,4,0" />
-                            <TextBlock x:Name="GpuMemTempText" FontSize="13.5" FontWeight="SemiBold" FontFamily="{StaticResource DisplayFont}"
-                                       VerticalAlignment="Center" />
+                            <StackPanel x:Name="TempSlot" Orientation="Horizontal" VerticalAlignment="Center">
+                                <local:ArcGauge x:Name="GpuGauge" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="GPU" FontSize="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <TextBlock x:Name="GpuTempText" FontSize="13.5" FontWeight="SemiBold" FontFamily="{StaticResource DisplayFont}"
+                                           VerticalAlignment="Center" />
+                                <TextBlock x:Name="GpuMemTempLabel" Text="MEM" FontSize="10" Foreground="{DynamicResource TextMuted}"
+                                           VerticalAlignment="Center" Margin="10,0,4,0" />
+                                <TextBlock x:Name="GpuMemTempText" FontSize="13.5" FontWeight="SemiBold" FontFamily="{StaticResource DisplayFont}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                     <Border x:Name="GpuStripDivider" Style="{StaticResource Divider}" Margin="0,0,0,10" Visibility="Collapsed" />
