@@ -4,8 +4,8 @@
         xmlns:local="clr-namespace:AmpTray"
         Title="AmpTray"
         WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
+        AllowsTransparency="False"
+        Background="{DynamicResource PanelSolidBrush}"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         SizeToContent="WidthAndHeight"
@@ -15,17 +15,16 @@
         Typography.NumeralAlignment="Tabular"
         Foreground="{DynamicResource TextPrimary}">
 
-    <!-- All visible text is assigned in code (ApplyLanguage) so it can be translated. -->
-    <Grid Margin="10">
+    <!-- All visible text is assigned in code (ApplyLanguage) so it can be translated.
+         Plain opaque window: corners are rounded by DWM, opacity is a per-window alpha. No layered
+         rendering and no bitmap effects, which keeps CPU and GPU use near zero between updates. -->
+    <Grid>
         <Border x:Name="Panel"
                 Width="292"
                 CornerRadius="12"
-                Background="{DynamicResource PanelBrush}"
+                Background="{DynamicResource PanelSolidBrush}"
                 BorderBrush="{DynamicResource PanelBorderBrush}"
                 BorderThickness="1">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity="0.4" />
-            </Border.Effect>
 
             <Grid>
                 <StackPanel Margin="14,12,14,12">

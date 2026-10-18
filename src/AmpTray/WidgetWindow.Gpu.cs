@@ -69,7 +69,7 @@ public partial class WidgetWindow
             FpsText.Text = "n/a";
             Ref(FpsText, TextBlock.ForegroundProperty, "TextMuted");
             FpsSlot.ToolTip = serviceRunning
-                ? Loc.T("No game is presenting frames right now")
+                ? Loc.T("The foreground app is not presenting frames; the counter shows the game while it is in front")
                 : Loc.T("The FPS counter needs the background service (Settings → Window → Background monitoring)");
         }
     }

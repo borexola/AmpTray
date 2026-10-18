@@ -36,6 +36,18 @@ dotnet publish "$src\AmpTray.csproj" -c $Configuration -r win-x64 -p:SelfContain
 if ($LASTEXITCODE) { throw "dotnet publish failed ($LASTEXITCODE)" }
 Get-ChildItem $publish -Filter *.pdb | Remove-Item -Force
 
+Write-Host "== PresentMon (Intel, MIT): frame counter used by the background service"
+$pmVersion = "2.6.0"
+$pmSha = "B2A706BC6AD475749E3B7E3409263AA1E6906D45BDCF993F6DBC0F660188F1AF"
+$pmCache = Join-Path $root "artifacts\tools\PresentMon-$pmVersion-x64.exe"
+if (-not (Test-Path $pmCache) -or (Get-FileHash $pmCache).Hash -ne $pmSha) {
+    New-Item -ItemType Directory -Force (Split-Path $pmCache) | Out-Null
+    Invoke-WebRequest -Uri "https://github.com/GameTechDev/PresentMon/releases/download/v$pmVersion/PresentMon-$pmVersion-x64.exe" -OutFile $pmCache -UseBasicParsing
+    if ((Get-FileHash $pmCache).Hash -ne $pmSha) { Remove-Item $pmCache; throw "PresentMon download hash mismatch" }
+}
+Copy-Item $pmCache (Join-Path $publish "PresentMon.exe") -Force
+Copy-Item (Join-Path $PSScriptRoot "PresentMon-LICENSE.txt") (Join-Path $publish "PresentMon-LICENSE.txt") -Force
+
 Write-Host "== Portable zip"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = "$out\AmpTray-$Version-win-x64-portable.zip"

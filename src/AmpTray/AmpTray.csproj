@@ -19,11 +19,22 @@
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <DebugType>none</DebugType>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Small footprint: workstation non-concurrent GC (one thread fewer), compact heaps, no PGO instrumentation. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>false</TieredPGO>
+    <AutoreleasePoolSupport>false</AutoreleasePoolSupport>
   </PropertyGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="6" />
+    <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="false" />
+  </ItemGroup>
 
   <PropertyGroup>
     <!-- Overridden by build.ps1 / CI with -p:Version=... -->
-    <Version>0.0.4</Version>
+    <Version>0.0.9</Version>
     <Product>AmpTray for WireView Pro II</Product>
     <AssemblyTitle>AmpTray</AssemblyTitle>
     <Authors>borexola</Authors>

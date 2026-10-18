@@ -34,18 +34,27 @@ public sealed class FpsSnapshot
         }
     }
 
+    /// <summary>Reads the latest snapshot; a read that collides with the service replacing the file is retried.</summary>
     public static FpsSnapshot? TryRead()
     {
-        try
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            if (!File.Exists(FilePath)) return null;
-            using var fs = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            var s = JsonSerializer.Deserialize<FpsSnapshot>(fs);
-            return s == null || s.IsStale ? null : s;
+            try
+            {
+                if (!File.Exists(FilePath)) return null;
+                using var fs = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                var s = JsonSerializer.Deserialize<FpsSnapshot>(fs);
+                return s == null || s.IsStale ? null : s;
+            }
+            catch (IOException)
+            {
+                System.Threading.Thread.Sleep(15);
+            }
+            catch
+            {
+                return null;
+            }
         }
-        catch
-        {
-            return null;
-        }
+        return null;
     }
 }

@@ -74,6 +74,7 @@ public partial class SettingsWindow : Window
 
         Loc.Changed += OnLanguageChanged;
         Closed += (_, _) => Loc.Changed -= OnLanguageChanged;
+        SourceInitialized += (_, _) => Native.RoundCorners(new System.Windows.Interop.WindowInteropHelper(this).Handle);
 
         ApplyLanguage();
         ShowPage(_current);
@@ -125,6 +126,18 @@ public partial class SettingsWindow : Window
         Header(Loc.T("Top bar"), Loc.T("Shown in both views when an NVIDIA GPU is present."));
         Toggle(Loc.T("GPU temperature at the top"), Loc.T("Gauge with the GPU (and memory) temperature next to the GPU name"), () => _s.ShowGpuTemp, v => _s.ShowGpuTemp = v);
         Toggle(Loc.T("FPS counter at the top"), Loc.T("Frames per second of the foreground game, measured by the background service"), () => _s.ShowFps, v => _s.ShowFps = v);
+        var screens = Forms.Screen.AllScreens;
+        if (screens.Length > 1)
+        {
+            var options = new List<(string, string)> { (Loc.T("Foreground app"), "") };
+            for (int i = 0; i < screens.Length; i++)
+            {
+                var sc = screens[i];
+                options.Add(($"{i + 1}: {sc.Bounds.Width}×{sc.Bounds.Height}" + (sc.Primary ? " (" + Loc.T("primary") + ")" : ""), sc.DeviceName));
+            }
+            Segmented(Loc.T("FPS of the game on"), options.ToArray(), () => _s.Monitor, v => _s.Monitor = v);
+            Note(Loc.T("With a monitor selected, the counter follows the app with the largest window on that screen, whatever is in the foreground."));
+        }
 
         Header(Loc.T("View"), null);
         Segmented(Loc.T("Layout"), new[] { (Loc.T("Compact"), false), (Loc.T("Expanded"), true) }, () => _s.Expanded, v => _s.Expanded = v);
@@ -305,20 +318,6 @@ public partial class SettingsWindow : Window
         var startup = new CheckBox { Style = Res("Switch"), IsChecked = _host.StartupEnabled, Content = Labelled(Loc.T("Start with Windows"), null) };
         startup.Click += (_, _) => { _host.StartupEnabled = startup.IsChecked == true; startup.IsChecked = _host.StartupEnabled; };
         Page.Children.Add(startup);
-
-        var screens = Forms.Screen.AllScreens;
-        if (screens.Length > 1)
-        {
-            Header(Loc.T("Monitor"), Loc.T("Move the widget to this monitor. Dragging it onto another monitor updates the choice."));
-            var options = new List<(string, string)>();
-            for (int i = 0; i < screens.Length; i++)
-            {
-                var sc = screens[i];
-                string label = $"{i + 1}: {sc.Bounds.Width}×{sc.Bounds.Height}" + (sc.Primary ? " (" + Loc.T("primary") + ")" : "");
-                options.Add((label, sc.DeviceName));
-            }
-            Segmented(Loc.T("Monitor"), options.ToArray(), () => _s.Monitor, v => _s.Monitor = v);
-        }
 
         Header(Loc.T("Background monitoring"), null);
         bool installed = _host.ServiceInstalled;

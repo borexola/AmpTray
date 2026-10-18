@@ -32,7 +32,6 @@ public partial class WidgetWindow : Window
     private readonly TextBlock[] _faultNames = new TextBlock[6];
     private readonly TextBlock[] _pinHeaderCells = new TextBlock[PinHeaderKeys.Length];
     private bool _expanded, _topmost = true, _clickThrough, _opaqueOnHover = true;
-    private string? _pendingMonitor;
     private double _baseOpacity = 1;
     private SensorSnapshot? _last;
     private SessionStats? _stats;
@@ -77,14 +76,14 @@ public partial class WidgetWindow : Window
         MouseEnter += (_, _) =>
         {
             HeaderButtons.Visibility = Visibility.Visible;
-            Fade(HeaderButtons, 1);
-            if (_opaqueOnHover) AnimateWindowOpacity(1);
+            HeaderButtons.Opacity = 1;
+            if (_opaqueOnHover) ApplyAlpha(1);
         };
         MouseLeave += (_, _) =>
         {
             HeaderButtons.Visibility = Visibility.Collapsed;
             HeaderButtons.Opacity = 0;
-            AnimateWindowOpacity(_baseOpacity);
+            ApplyAlpha(_baseOpacity);
         };
 
         ExpandButton.Click += (_, _) => ExpandToggleRequested?.Invoke();
@@ -120,48 +119,14 @@ public partial class WidgetWindow : Window
         }
     }
 
-    // ===== Monitors =====
-
-    /// <summary>Device name of the monitor the widget is on right now (e.g. \\.\DISPLAY2), or null before it is shown.</summary>
-    public string? CurrentMonitor()
-    {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero) return null;
-        return System.Windows.Forms.Screen.FromHandle(hwnd).DeviceName;
-    }
-
-    /// <summary>
-    /// Puts the widget on the given monitor if it is not already there: top-right corner of its work area,
-    /// positioned in physical pixels so monitors with different scaling are handled correctly.
-    /// </summary>
-    public void MoveToMonitor(string deviceName)
-    {
-        var target = System.Windows.Forms.Screen.AllScreens.FirstOrDefault(s => s.DeviceName == deviceName);
-        if (target == null) return; // unplugged: keep the current position
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero || !IsLoaded)
-        {
-            // Called before the window exists (startup): do it once it has been laid out.
-            if (_pendingMonitor == null) Loaded += (_, _) => { var m = _pendingMonitor; _pendingMonitor = null; if (m != null) MoveToMonitor(m); };
-            _pendingMonitor = deviceName;
-            return;
-        }
-        if (System.Windows.Forms.Screen.FromHandle(hwnd).DeviceName == deviceName) return;
-
-        var source = PresentationSource.FromVisual(this);
-        double scale = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
-        int widthPx = (int)Math.Round(ActualWidth * scale);
-        var area = target.WorkingArea;
-        Native.SetWindowPos(hwnd, IntPtr.Zero, area.Right - widthPx - 12, area.Top + 12, 0, 0,
-            Native.SWP_NOSIZE | Native.SWP_NOZORDER | Native.SWP_NOACTIVATE);
-        Moved?.Invoke();
-    }
-
     // ===== Window behaviour =====
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
         ApplyExStyle();
+        var hwnd = new WindowInteropHelper(this).Handle;
+        Native.RoundCorners(hwnd);
+        ApplyAlpha(_baseOpacity);
     }
 
     /// <summary>
@@ -186,12 +151,16 @@ public partial class WidgetWindow : Window
     {
         _baseOpacity = value;
         _opaqueOnHover = opaqueOnHover;
-        AnimateWindowOpacity(opaqueOnHover && IsMouseOver ? 1 : value);
+        ApplyAlpha(opaqueOnHover && IsMouseOver ? 1 : value);
     }
 
-    // Window.Opacity is always driven by an animation here; a plain assignment would be overridden by it.
-    private void AnimateWindowOpacity(double to) =>
-        BeginAnimation(OpacityProperty, new DoubleAnimation(to, TimeSpan.FromMilliseconds(160)));
+    /// <summary>Per-window alpha composited by DWM: free, unlike WPF's Opacity on a layered window.</summary>
+    private void ApplyAlpha(double opacity)
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        Native.SetLayeredWindowAttributes(hwnd, 0, (byte)Math.Round(Math.Clamp(opacity, 0.05, 1) * 255), Native.LWA_ALPHA);
+    }
 
     /// <summary>Raises the widget above other windows once, without pinning it there.</summary>
     public void BringToFront()
@@ -206,7 +175,7 @@ public partial class WidgetWindow : Window
     {
         var hwnd = new WindowInteropHelper(this).Handle;
         if (hwnd == IntPtr.Zero) return;
-        int style = Native.GetWindowLong(hwnd, Native.GWL_EXSTYLE) | Native.WS_EX_TOOLWINDOW;
+        int style = Native.GetWindowLong(hwnd, Native.GWL_EXSTYLE) | Native.WS_EX_TOOLWINDOW | Native.WS_EX_LAYERED;
         style = _clickThrough ? style | Native.WS_EX_TRANSPARENT : style & ~Native.WS_EX_TRANSPARENT;
         style = _topmost ? style | Native.WS_EX_NOACTIVATE : style & ~Native.WS_EX_NOACTIVATE;
         Native.SetWindowLong(hwnd, Native.GWL_EXSTYLE, style);
@@ -272,6 +241,7 @@ public partial class WidgetWindow : Window
         FaultEvents.Visibility = Vis(expanded);
         SetGpuExpanded(expanded);
 
+        InvalidateFaults();
         if (_last != null && _stats != null) ShowSample(_last, _port, _stats);
     }
 
@@ -293,6 +263,7 @@ public partial class WidgetWindow : Window
     public void RefreshTheme()
     {
         Graph.InvalidateVisual();
+        InvalidateFaults();
         if (_last != null && _stats != null) ShowSample(_last, _port, _stats);
         else ShowDisconnected(null);
         if (_lastGpu != null && _gpuStats != null) ShowGpu(_lastGpu, _gpuStats);
@@ -384,6 +355,7 @@ public partial class WidgetWindow : Window
             Ref(t.Value, TextBlock.ForegroundProperty, "TextMuted");
             t.Max.Text = "";
         }
+        InvalidateFaults();
         FaultPanel.Children.Clear();
         FaultPanel.Children.Add(Chip(Loc.T("No data"), "TextMuted", "TextMuted"));
         foreach (var (dot, state) in _faultCells)
@@ -482,8 +454,18 @@ public partial class WidgetWindow : Window
         SessionText.Text = Loc.F("Since {0} · peak {1} W · avg {2} W · {3}", stats.Since.ToString("HH:mm"), stats.PeakPowerW.ToString("0"), stats.AvgPowerW.ToString("0"), FormatEnergy(stats.EnergyWh));
     }
 
+    private int _faultKey = -1;
+
+    /// <summary>Forces the next sample to rebuild the fault chips (layout, language or theme changed).</summary>
+    private void InvalidateFaults() => _faultKey = -1;
+
     private void UpdateFaults(SensorSnapshot s, SessionStats stats)
     {
+        // Chips and the event list are only rebuilt when the fault state changes, not every second.
+        int faultKey = (s.FaultStatus << 16) | s.FaultLog | (stats.FaultEvents.Count << 20);
+        if (faultKey == _faultKey) return;
+        _faultKey = faultKey;
+
         var active = SensorSnapshot.Decode(s.FaultStatus).ToList();
         var loggedOnly = SensorSnapshot.Decode((ushort)(s.FaultLog & ~s.FaultStatus)).ToList();
 
@@ -706,16 +688,11 @@ public partial class WidgetWindow : Window
 
     private static void Ref(FrameworkElement e, DependencyProperty p, string key) => e.SetResourceReference(p, key);
 
-    private static void Fade(UIElement e, double to) =>
-        e.BeginAnimation(OpacityProperty, new DoubleAnimation(to, TimeSpan.FromMilliseconds(150)));
-
+    /// <summary>Bars move without animation: an animation would redraw the whole window at 60 fps for its duration.</summary>
     private static void Animate(ScaleTransform t, double to)
     {
-        var anim = new DoubleAnimation(to, TimeSpan.FromMilliseconds(350))
-        {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-        };
-        t.BeginAnimation(ScaleTransform.ScaleXProperty, anim);
+        if (Math.Abs(t.ScaleX - to) < 0.002) return;
+        t.ScaleX = to;
     }
 
     private static Border Chip(string text, string fgKey, string accentKey, bool filled = false)

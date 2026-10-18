@@ -180,6 +180,46 @@ internal static class Native
     public static readonly IntPtr HWND_NOTOPMOST = new(-2);
     public const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT { public int L, T, R, B; }
+
+    public const int WS_EX_LAYERED = 0x80000;
+    public const uint LWA_ALPHA = 0x2;
+    public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    public const int DWMWCP_ROUND = 2;
+
+    [DllImport("user32.dll")] public static extern bool SetLayeredWindowAttributes(IntPtr hWnd, uint colorKey, byte alpha, uint flags);
+    [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr hWnd, int attribute, ref int value, int size);
+
+    [DllImport("kernel32.dll")] private static extern bool SetProcessWorkingSetSize(IntPtr process, IntPtr min, IntPtr max);
+    [DllImport("kernel32.dll")] private static extern IntPtr GetCurrentProcess();
+
+    /// <summary>
+    /// Collects garbage and gives unused pages back to the OS. Called once things have settled after
+    /// startup and after the settings window closes; pages that are still needed come back on demand.
+    /// </summary>
+    public static void TrimMemory()
+    {
+        try
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            SetProcessWorkingSetSize(GetCurrentProcess(), new IntPtr(-1), new IntPtr(-1));
+        }
+        catch
+        {
+            // Purely cosmetic; never fail over it.
+        }
+    }
+
+    /// <summary>Asks DWM for rounded corners (Windows 11; silently ignored on Windows 10).</summary>
+    public static void RoundCorners(IntPtr hWnd)
+    {
+        int pref = DWMWCP_ROUND;
+        try { DwmSetWindowAttribute(hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int)); } catch { }
+    }
+
     [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
     [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);

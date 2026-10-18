@@ -34,7 +34,7 @@ Both are self-contained (no .NET install needed), Windows 10/11 x64. The install
 
 - Drag to move. Double-click to switch between compact and expanded; the widget always starts compact. Compact shows only the panels you pick in Settings, expanded shows everything. Hover for the expand and settings buttons.
 - Opacity goes down to 5 %; by default the widget fades back to solid while the mouse is over it.
-- The GPU temperature and the FPS counter in the top bar can each be turned off (Settings → Panels → Top bar). With several monitors, Settings → Window → Monitor picks where the widget lives; dragging it to another monitor updates the choice.
+- The GPU temperature and the FPS counter in the top bar can each be turned off (Settings → Panels → Top bar). With several monitors you can pick which screen's game the FPS counter follows; by default it follows the app in the foreground.
 - Right-click the widget or tray icon for the menu. Left-click the tray icon to show or hide the widget.
 - Settings pages: Panels, Theme, Alerts, Logging, Auto shutdown, Window (always on top, click-through, opacity, refresh rate, start with Windows, language, update check).
 - Switches: `/settings`, `/settings:Theme`, `/test-alert`.
@@ -45,7 +45,7 @@ Both are self-contained (no .NET install needed), Windows 10/11 x64. The install
 - A Windows window cannot exist before someone signs in, so protection from boot is handled by a **background service**: the same exe started as `AmpTray.exe /service` under LocalSystem. It polls the device and GPU, writes the CSV log and applies the auto-shutdown rules exactly like the widget, using the same read-only requests. While it runs, it is the one that issues the shutdown (with Windows' own countdown when a countdown is configured) and the widget shows the banner and can still cancel.
 - The installer offers the service as a checkbox (on by default; `INSTALLSERVICE=0` for unattended installs). Settings → Window → Background monitoring turns it on or off later, which asks for administrator approval.
 - The service reads `C:\ProgramData\AmpTray\service.json`, which the widget keeps in sync with your settings, and logs to `service.log` next to it.
-- The service also provides the **FPS counter** shown at the top of the widget: it listens to the Windows graphics present events (the same ones PresentMon uses, which need elevated rights) and reports frames per second for the foreground game, or the busiest presenting process. Without the service the slot shows n/a.
+- The service also provides the **FPS counter** shown at the top of the widget. It runs Intel's PresentMon (shipped as `PresentMon.exe`, MIT licence), the reference tool that counts presented frames from the Windows graphics trace, and reports frames per second for the game in the foreground (or on the chosen monitor). Without the service the slot shows n/a.
 
 ## Fault alerts
 
@@ -73,4 +73,4 @@ Needs the .NET 10 SDK. `dotnet build` at the root builds `AmpTray.slnx`; `.\buil
 
 ## Legal
 
-*WireView* and *Thermal Grizzly* are trademarks of Thermal Grizzly Holding GmbH; *NVIDIA* and *GeForce* are trademarks of NVIDIA Corporation, used only to identify the hardware this tool works with. Nothing from the official software or firmware is included; the two read-only requests were determined for interoperability and the code is original. Built with .NET (MIT), System.IO.Ports (MIT), WiX Toolset (MS-RL, build time only) and GitHub Actions. Licensed under the MIT License.
+*WireView* and *Thermal Grizzly* are trademarks of Thermal Grizzly Holding GmbH; *NVIDIA* and *GeForce* are trademarks of NVIDIA Corporation, used only to identify the hardware this tool works with. Nothing from the official software or firmware is included; the two read-only requests were determined for interoperability and the code is original. Built with .NET (MIT), System.IO.Ports (MIT), Microsoft TraceEvent (MIT), WiX Toolset (MS-RL, build time only) and GitHub Actions; ships Intel PresentMon (MIT, see `PresentMon-LICENSE.txt`). Licensed under the MIT License.

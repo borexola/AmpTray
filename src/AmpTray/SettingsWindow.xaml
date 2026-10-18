@@ -4,8 +4,8 @@
         Title="AmpTray Settings"
         Width="640" Height="640"
         WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
+        AllowsTransparency="False"
+        Background="{DynamicResource PanelSolidBrush}"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True"
@@ -223,10 +223,7 @@
     </Window.Resources>
 
     <Border CornerRadius="12" Background="{DynamicResource PanelSolidBrush}"
-            BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" Margin="10">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="18" ShadowDepth="2" Opacity="0.45" />
-        </Border.Effect>
+            BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="44" />

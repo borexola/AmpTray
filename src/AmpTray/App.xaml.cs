@@ -157,9 +157,14 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (_settings.CheckUpdates) _ = CheckForUpdatesAsync();
 
         // FPS comes from the background service's fps.json; show the foreground process, else the busiest one.
-        _fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Math.Max(250, _settings.PollMs)) };
         _fpsTimer.Tick += (_, _) => UpdateFps();
         _fpsTimer.Start();
+
+        // Startup allocations (XAML parsing, JIT, first samples) are done after a few seconds: hand the pages back.
+        var trim = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+        trim.Tick += (_, _) => { trim.Stop(); Native.TrimMemory(); };
+        trim.Start();
 
         // Optional switches: /settings[:Page] opens the settings window, /test-alert fires the 5 s test alert.
         var settingsArg = e.Args.FirstOrDefault(a => a.StartsWith("/settings", StringComparison.OrdinalIgnoreCase));
@@ -174,7 +179,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         ApplyMenuTexts();
         UpdateRecording();
         _iconKey = "";
-        UpdateTray();
+        UpdateTray(force: true);
         if (_alerting) _window?.ShowAlert(_alertMessage, _settings.FlashWidget);
     }
 
@@ -204,18 +209,100 @@ public partial class App : System.Windows.Application, ISettingsHost
 
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hWnd);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out Native.RECT rect);
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    private FpsSnapshot? _lastFpsSnapshot;
+    private DateTime _lastFpsSnapshotAt;
+    private int _lastFpsPid;
+    private DateTime _lastFpsPickAt;
 
     private void UpdateFps()
     {
         if (_window == null || !_window.IsVisible || !_settings.ShowFps) return;
+
+        // Keep the previous snapshot for a moment if this read failed (file being replaced by the service).
         var snap = FpsSnapshot.TryRead();
+        if (snap != null) { _lastFpsSnapshot = snap; _lastFpsSnapshotAt = DateTime.UtcNow; }
+        else if (_lastFpsSnapshot != null && (DateTime.UtcNow - _lastFpsSnapshotAt).TotalSeconds < 3) snap = _lastFpsSnapshot;
+
         FpsEntry? pick = null;
         if (snap != null && snap.Processes.Count > 0)
         {
-            GetWindowThreadProcessId(GetForegroundWindow(), out uint fg);
-            pick = snap.Processes.FirstOrDefault(p => p.Pid == (int)fg) ?? snap.Processes[0];
+            var screen = string.IsNullOrEmpty(_settings.Monitor) ? null
+                : Forms.Screen.AllScreens.FirstOrDefault(sc => sc.DeviceName == _settings.Monitor);
+            if (screen != null)
+            {
+                pick = PresenterOnMonitor(snap, screen);
+            }
+            else
+            {
+                // No monitor chosen: the app in the foreground, i.e. the game while it is played.
+                GetWindowThreadProcessId(GetForegroundWindow(), out uint fg);
+                pick = snap.Processes.FirstOrDefault(p => p.Pid == (int)fg);
+            }
+
+            // Focus flickers (overlays, launchers, notifications): stay with the last matched game for a few seconds.
+            if (pick == null && _lastFpsPid != 0 && (DateTime.UtcNow - _lastFpsPickAt).TotalSeconds < 5)
+                pick = snap.Processes.FirstOrDefault(p => p.Pid == _lastFpsPid);
         }
+
+        // A desktop app repainting a few times a second is not "frames"; below 10 the slot shows n/a.
+        if (pick != null && pick.Fps < 10) pick = null;
+        if (pick != null) { _lastFpsPid = pick.Pid; _lastFpsPickAt = DateTime.UtcNow; }
         _window.ShowFps(pick?.Fps, pick?.Name, snap != null || ServiceManager.IsRunningCached());
+        FpsDebug(snap, pick);
+    }
+
+    private DateTime _fpsDebugAt;
+
+    /// <summary>When the counter shows n/a although the service reports presenters, note why (every 10 s) in fps_debug.log.</summary>
+    private void FpsDebug(FpsSnapshot? snap, FpsEntry? pick)
+    {
+        if (pick != null || snap == null || snap.Processes.Count == 0) return;
+        if ((DateTime.UtcNow - _fpsDebugAt).TotalSeconds < 10) return;
+        _fpsDebugAt = DateTime.UtcNow;
+        try
+        {
+            var fgWindow = GetForegroundWindow();
+            GetWindowThreadProcessId(fgWindow, out uint fg);
+            string fgName;
+            try { using var p = System.Diagnostics.Process.GetProcessById((int)fg); fgName = p.ProcessName; } catch { fgName = "?"; }
+            string top = string.Join(", ", snap.Processes.Take(4).Select(e => $"{e.Name}[{e.Pid}]:{e.Fps:0}"));
+            File.AppendAllText(Path.Combine(Settings.AppDataFolder, "fps_debug.log"),
+                $"{DateTime.Now:HH:mm:ss}  n/a  foreground={fgName}[{fg}] monitor='{_settings.Monitor}' snapshotAge={(DateTime.Now - snap.Timestamp).TotalSeconds:0.0}s top={top}{Environment.NewLine}");
+        }
+        catch
+        {
+            // Diagnostics only.
+        }
+    }
+
+    /// <summary>The presenting process with the largest visible window on the given monitor (a game fills it).</summary>
+    private FpsEntry? PresenterOnMonitor(FpsSnapshot snap, Forms.Screen screen)
+    {
+        var byPid = snap.Processes.ToDictionary(p => p.Pid);
+        var area = new System.Collections.Generic.Dictionary<int, long>();
+        int self = Environment.ProcessId;
+        var bounds = screen.Bounds; // physical pixels, same space as GetWindowRect for this DPI-aware process
+        EnumWindows((hWnd, _) =>
+        {
+            if (!IsWindowVisible(hWnd) || IsIconic(hWnd)) return true;
+            GetWindowThreadProcessId(hWnd, out uint pid);
+            if (pid == self || !byPid.ContainsKey((int)pid)) return true;
+            if (!GetWindowRect(hWnd, out var r)) return true;
+            long w = Math.Min(r.R, bounds.Right) - Math.Max(r.L, bounds.Left);
+            long h = Math.Min(r.B, bounds.Bottom) - Math.Max(r.T, bounds.Top);
+            if (w <= 0 || h <= 0) return true;
+            area[(int)pid] = (area.TryGetValue((int)pid, out var sum) ? sum : 0) + w * h;
+            return true;
+        }, IntPtr.Zero);
+        if (area.Count == 0) return null;
+        int best = area.OrderByDescending(kv => kv.Value).ThenByDescending(kv => byPid[kv.Key].Fps).First().Key;
+        return byPid[best];
     }
 
     // ===== Updates =====
@@ -317,12 +404,12 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (s.Expanded) _window.SetPanels(true, true, true, true, true);
         else _window.SetPanels(s.ShowWires, s.ShowTemps, s.ShowGraph, s.ShowFaults, s.ShowGpu);
         _window.SetTopBar(s.ShowGpuTemp, s.ShowFps);
-        if (!string.IsNullOrEmpty(s.Monitor)) _window.MoveToMonitor(s.Monitor);
         _window.SetGraph(_history, s.GraphWindowSeconds, s.PollMs);
         _window.SetGpuGraph(_gpuHistory);
         _window.SetExpanded(s.Expanded);
         _window.RefreshTheme();
         if (_poller != null) _poller.IntervalMs = s.PollMs;
+        if (_fpsTimer != null) _fpsTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(250, s.PollMs)); // FPS updates at the same rate
         _shutdown.MaxGap = TimeSpan.FromSeconds(Math.Max(10, s.PollMs * 4 / 1000.0));
         if (_gpu != null)
         {
@@ -347,7 +434,7 @@ public partial class App : System.Windows.Application, ISettingsHost
 
         RefreshMenu();
         _iconKey = "";
-        UpdateTray();
+        UpdateTray(force: true);
         s.Save();
 
         // The background service follows the same rules, logging and refresh rate.
@@ -400,7 +487,7 @@ public partial class App : System.Windows.Application, ISettingsHost
             return;
         }
         _settingsWindow = new SettingsWindow(_settings, this, page);
-        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Closed += (_, _) => { _settingsWindow = null; Native.TrimMemory(); };
         _settingsWindow.Show();
         _settingsWindow.Activate();
     }
@@ -420,7 +507,7 @@ public partial class App : System.Windows.Application, ISettingsHost
             _window?.ShowDisconnected(null);
             // Device rules lose their data and reset; a GPU rule keeps timing.
             EvaluateShutdown(deviceFresh: false, gpuFresh: false);
-            UpdateTray();
+            UpdateTray(force: true);
         }
     }
 
@@ -684,9 +771,6 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (_window == null) return;
         _settings.Left = _window.Left;
         _settings.Top = _window.Top;
-        // Dragging the widget to another monitor makes that the chosen monitor.
-        string? monitor = _window.CurrentMonitor();
-        if (monitor != null) _settings.Monitor = monitor;
         _settings.Save();
     }
 
@@ -827,9 +911,15 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (_update != null) _updateItem.Text = Loc.F("Update available: {0}", _update.Tag);
     }
 
-    private void UpdateTray()
+    private DateTime _trayStamp = DateTime.MinValue;
+    private string _trayText = "";
+
+    private void UpdateTray(bool force = false)
     {
         if (_tray == null) return;
+        // The shell is told about the icon at most every 2 s; status changes still refresh it at once via force.
+        if (!force && (DateTime.UtcNow - _trayStamp).TotalSeconds < 2) return;
+        _trayStamp = DateTime.UtcNow;
 
         string text;
         if (_last == null)
@@ -846,7 +936,12 @@ public partial class App : System.Windows.Application, ISettingsHost
         }
         if (_lastGpu is GpuSnapshot g)
             text += $"\nGPU {g.TempC:0} °C · {g.LoadPct:0} % · {g.PowerW:0} W";
-        _tray.Text = text.Length > 127 ? text[..127] : text;
+        if (text.Length > 127) text = text[..127];
+        if (text != _trayText)
+        {
+            _trayText = text;
+            _tray.Text = text;
+        }
 
         RenderTrayIcon(_last);
     }
@@ -866,8 +961,9 @@ public partial class App : System.Windows.Application, ISettingsHost
 
         // Bars use the same scale as the widget: full height = one wire's share of the cable rating.
         double limit = s == null ? 1 : WidgetWindow.WireLimitA(s);
+        // 2 px steps: small current ripples don't redraw the icon.
         var heights = Enumerable.Range(0, SensorSnapshot.PinCount)
-            .Select(i => s == null ? 3 : 3 + (int)Math.Round(19 * Math.Clamp(s.PinCurrent[i] / limit, 0, 1)))
+            .Select(i => s == null ? 3 : 3 + 2 * (int)Math.Round(9.5 * Math.Clamp(s.PinCurrent[i] / limit, 0, 1)))
             .ToArray();
 
         string key = $"{color.ToArgb()}:{background.ToArgb()}:{string.Join(",", heights)}";
