@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX 5 definition of the AmpTray MSI.
+  Built by build.ps1 with:  -d Version=x.y.z  -d PublishDir=<self-contained publish folder>  -d SourceDir=<repo root>
+
+  Silent install with a preset language:  msiexec /i AmpTray-x.y.z-x64.msi /qn APPLANGUAGE=fr
+  (APPLANGUAGE: auto | en | fr | da | pl)
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="AmpTray for WireView Pro II"
+           Manufacturer="borexola"
+           Version="$(var.Version)"
+           UpgradeCode="7F3C2A9E-5D1B-4C0E-9A6F-2B8E4D7C1F30"
+           Language="1033"
+           Scope="perMachine"
+           Compressed="yes"
+           InstallerVersion="500">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+                  Schedule="afterInstallInitialize" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="AppIcon.ico" SourceFile="$(var.SourceDir)\Assets\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/borexola/AmpTray" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/borexola/AmpTray/issues" />
+    <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
+    <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />
+
+    <!-- Language the widget should use; chosen on the first dialog or passed on the command line. -->
+    <Property Id="APPLANGUAGE" Value="auto" Secure="yes" />
+
+    <!-- A running widget would lock its files during an upgrade; stop it first. -->
+    <util:CloseApplication Id="CloseWidget" Target="AmpTray.exe" CloseMessage="no"
+                           TerminateProcess="0" RebootPrompt="no" Timeout="5" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="AmpTray" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main" Title="AmpTray" Level="1">
+      <Files Include="$(var.PublishDir)\**" Directory="INSTALLFOLDER">
+        <Exclude Files="$(var.PublishDir)\**\*.pdb" />
+      </Files>
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="LanguageChoice" />
+    </Feature>
+
+    <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder" Guid="C4E7D1A2-9B3F-4F6E-8D2A-5E1C7B9A3F60">
+      <Shortcut Id="StartMenuEntry" Name="AmpTray"
+                Description="Read-only WireView Pro II desktop widget"
+                Target="[INSTALLFOLDER]AmpTray.exe" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon.ico" />
+      <RegistryValue Root="HKCU" Key="Software\borexola\AmpTray" Name="StartMenuShortcut"
+                     Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <!-- The app reads this once on its next start, applies it to its settings and removes it. -->
+    <Component Id="LanguageChoice" Directory="INSTALLFOLDER" Guid="5B9D2E41-7C3A-4F8B-A1D6-0E2F9C7B3A55">
+      <RegistryValue Root="HKCU" Key="Software\borexola\AmpTray" Name="Language"
+                     Type="string" Value="[APPLANGUAGE]" KeyPath="yes" />
+    </Component>
+
+    <!-- Start the widget at the end of an interactive install or upgrade. -->
+    <CustomAction Id="LaunchWidget" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]AmpTray.exe&quot;"
+                  Execute="immediate" Impersonate="yes" Return="asyncNoWait" />
+    <InstallExecuteSequence>
+      <Custom Action="LaunchWidget" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />
+    </InstallExecuteSequence>
+
+    <!-- ===== Setup UI: one page to pick the language, then progress ===== -->
+    <UIRef Id="WixUI_Common" />
+    <UI Id="AmpTrayUI">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <DialogRef Id="ExitDialog" />
+
+      <Dialog Id="LanguageDlg" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Banner" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="340" Height="15" Transparent="yes" NoPrefix="yes"
+                 Text="{\WixUI_Font_Title}Choose your language" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="330" Height="15" Transparent="yes" NoPrefix="yes"
+                 Text="Choose the language AmpTray will use. You can change it later in Settings." />
+
+        <Control Id="Intro" Type="Text" X="25" Y="60" Width="320" Height="30" NoPrefix="yes"
+                 Text="AmpTray is an unofficial, read-only desktop widget for the Thermal Grizzly WireView Pro II. It installs to Program Files and adds a Start Menu entry." />
+
+        <Control Id="Languages" Type="RadioButtonGroup" Property="APPLANGUAGE" X="40" Y="100" Width="300" Height="120">
+          <RadioButtonGroup Property="APPLANGUAGE">
+            <RadioButton Value="auto" X="0" Y="0" Width="280" Height="16" Text="Follow the Windows display language" />
+            <RadioButton Value="en" X="0" Y="22" Width="280" Height="16" Text="English" />
+            <RadioButton Value="fr" X="0" Y="44" Width="280" Height="16" Text="Français" />
+            <RadioButton Value="da" X="0" Y="66" Width="280" Height="16" Text="Dansk" />
+            <RadioButton Value="pl" X="0" Y="88" Width="280" Height="16" Text="Polski" />
+          </RadioButtonGroup>
+        </Control>
+
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Install" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="Install">
+          <Publish Event="EndDialog" Value="Return" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+
+      <InstallUISequence>
+        <Show Dialog="LanguageDlg" Before="ProgressDlg" Condition="NOT Installed" />
+      </InstallUISequence>
+    </UI>
+
+  </Package>
+</Wix>

@@ -1,0 +1,57 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Work out the version
+        id: ver
+        shell: pwsh
+        run: |
+          $ref = '${{ github.ref }}'
+          if ($ref -like 'refs/tags/v*') {
+            $v = $ref.Substring('refs/tags/v'.Length)
+          } else {
+            $v = "0.0.1-ci.${{ github.run_number }}"
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $v"
+
+      - name: Build, zip and MSI
+        shell: pwsh
+        run: ./build.ps1 -Version '${{ steps.ver.outputs.version }}'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AmpTray-${{ steps.ver.outputs.version }}
+          path: artifacts/out/*
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: AmpTray ${{ steps.ver.outputs.version }}
+          files: artifacts/out/*
+          generate_release_notes: true
+          prerelease: ${{ contains(steps.ver.outputs.version, '-') }}

@@ -1,0 +1,15 @@
+# Build output
+bin/
+obj/
+artifacts/
+publish/
+
+# Every dot-folder is local state (IDE, tooling caches, assistant memory) except the GitHub workflows.
+.*/
+!.github/
+
+# IDE / local
+*.user
+*.suo
+*.swp
+*.DotSettings.user
