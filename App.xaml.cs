@@ -103,6 +103,7 @@ public partial class App : System.Windows.Application, ISettingsHost
     private void StartUp(StartupEventArgs e)
     {
         _settings = Settings.Load();
+        _settings.Expanded = false; // always start compact; expanded is a per-session view
         ApplyInstallerLanguage(_settings);
         Theme.Apply(Theme.Resolve(_settings));
         Loc.Apply(_settings.Language);
@@ -278,8 +279,10 @@ public partial class App : System.Windows.Application, ISettingsHost
         Loc.Apply(s.Language);
         _window.SetTopmost(s.Topmost);
         _window.SetClickThrough(s.ClickThrough);
-        _window.Opacity = Math.Clamp(s.Opacity, 0.3, 1.0);
-        _window.SetPanels(s.ShowWires, s.ShowTemps, s.ShowGraph, s.ShowFaults, s.ShowGpu);
+        _window.SetOpacity(Math.Clamp(s.Opacity, Settings.MinOpacity, 1.0), s.OpaqueOnHover);
+        // Panel choices apply to the compact view; expanded always shows everything.
+        if (s.Expanded) _window.SetPanels(true, true, true, true, true);
+        else _window.SetPanels(s.ShowWires, s.ShowTemps, s.ShowGraph, s.ShowFaults, s.ShowGpu);
         _window.SetGraph(_history, s.GraphWindowSeconds, s.PollMs);
         _window.SetGpuGraph(_gpuHistory);
         _window.SetExpanded(s.Expanded);
@@ -312,6 +315,10 @@ public partial class App : System.Windows.Application, ISettingsHost
         UpdateTray();
         s.Save();
     }
+
+    /// <summary>Live preview while the opacity slider is being dragged; the value is saved by ApplySettings afterwards.</summary>
+    public void PreviewOpacity(double opacity) =>
+        _window?.SetOpacity(Math.Clamp(opacity, Settings.MinOpacity, 1.0), _settings.OpaqueOnHover);
 
     public bool StartupEnabled
     {

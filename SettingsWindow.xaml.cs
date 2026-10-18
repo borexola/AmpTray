@@ -19,6 +19,7 @@ public interface ISettingsHost
     void ApplySettings();
     void TestAlert();
     void TestShutdown();
+    void PreviewOpacity(double opacity);
     bool StartupEnabled { get; set; }
     string LogStatus { get; }
 }
@@ -109,7 +110,7 @@ public partial class SettingsWindow : Window
     // ===== Pages =====
     private void BuildPanelsPage()
     {
-        Header(Loc.T("Panels"), Loc.T("Choose what the widget shows. The header with total power is always visible."));
+        Header(Loc.T("Panels"), Loc.T("Choose what the compact view shows. The expanded view always shows every panel, and the header with total power is always visible."));
         Toggle(Loc.T("Wires"), Loc.T("Current and voltage on each of the six wires"), () => _s.ShowWires, v => _s.ShowWires = v);
         Toggle(Loc.T("Temperatures"), Loc.T("Onboard in/out and the two external probes"), () => _s.ShowTemps, v => _s.ShowTemps = v);
         Toggle(Loc.T("GPU"), Loc.T("NVIDIA GPU load, power and VRAM. GPU temperatures always show at the top when an NVIDIA GPU is present."),
@@ -119,7 +120,7 @@ public partial class SettingsWindow : Window
 
         Header(Loc.T("View"), null);
         Segmented(Loc.T("Layout"), new[] { (Loc.T("Compact"), false), (Loc.T("Expanded"), true) }, () => _s.Expanded, v => _s.Expanded = v);
-        Note(Loc.T("Expanded adds per-wire watts and peaks, temperature maxima, GPU details, a taller graph with session stats, and a full fault table with recent events. Double-click the widget to switch."));
+        Note(Loc.T("Expanded adds per-wire watts and peaks, temperature maxima, GPU details, a taller graph with session stats, and a full fault table with recent events. Double-click the widget to switch.") + " " + Loc.T("The widget always starts compact."));
 
         Header(Loc.T("Power graph"), null);
         Segmented(Loc.T("Time window"), new[] { (Loc.F("{0} min", 1), 60), (Loc.F("{0} min", 5), 300), (Loc.F("{0} min", 15), 900), (Loc.F("{0} h", 1), 3600) },
@@ -287,8 +288,9 @@ public partial class SettingsWindow : Window
             () => _s.Topmost, v => _s.Topmost = v);
         Toggle(Loc.T("Lock (click-through)"), Loc.T("Clicks pass through the widget. Unlock from the tray menu."),
             () => _s.ClickThrough, v => _s.ClickThrough = v);
-        Segmented(Loc.T("Opacity"), new[] { ("100 %", 1.0), ("90 %", 0.9), ("75 %", 0.75), ("60 %", 0.6) },
-            () => Math.Round(_s.Opacity, 2), v => _s.Opacity = v);
+        OpacityRow();
+        Toggle(Loc.T("Opaque on hover"), Loc.T("Fade back to full opacity while the mouse is over the widget"),
+            () => _s.OpaqueOnHover, v => _s.OpaqueOnHover = v);
         Segmented(Loc.T("Refresh rate"), new[] { (Loc.F("{0} s", 0.5.ToString(CultureInfo.CurrentCulture)), 500), (Loc.F("{0} s", 1), 1000), (Loc.F("{0} s", 2), 2000) },
             () => _s.PollMs, v => _s.PollMs = v);
 
@@ -366,6 +368,45 @@ public partial class SettingsWindow : Window
             panel.Children.Add(rb);
         }
         Page.Children.Add(panel);
+    }
+
+    /// <summary>Opacity slider from almost invisible to solid; previews live, saves shortly after the last change.</summary>
+    private void OpacityRow()
+    {
+        Label(Loc.T("Opacity"));
+        var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+        row.ColumnDefinitions.Add(new ColumnDefinition());
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(52) });
+
+        var slider = new Slider
+        {
+            Style = Res("Slider"),
+            Minimum = Settings.MinOpacity * 100,
+            Maximum = 100,
+            Value = Math.Round(_s.Opacity * 100),
+            SmallChange = 1,
+            LargeChange = 10,
+            Margin = new Thickness(0, 0, 10, 0),
+        };
+        var value = new TextBlock { Text = $"{slider.Value:0} %", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Right };
+        value.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+        Grid.SetColumn(value, 1);
+
+        var save = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        save.Tick += (_, _) => { save.Stop(); Changed(); };
+        slider.ValueChanged += (_, e) =>
+        {
+            _s.Opacity = Math.Round(e.NewValue) / 100;
+            value.Text = $"{e.NewValue:0} %";
+            _host.PreviewOpacity(_s.Opacity);
+            save.Stop();
+            save.Start();
+        };
+
+        row.Children.Add(slider);
+        row.Children.Add(value);
+        Page.Children.Add(row);
+        Note(Loc.T("At very low values the widget is easy to lose; it still responds to the mouse unless click-through is on."));
     }
 
     private StackPanel RuleCard(string title, Func<bool> get, Action<bool> set)

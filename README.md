@@ -32,7 +32,8 @@ Both are self-contained (no .NET install needed), Windows 10/11 x64. The install
 
 ## Use
 
-- Drag to move. Double-click to switch between compact and expanded. Hover for the expand and settings buttons.
+- Drag to move. Double-click to switch between compact and expanded; the widget always starts compact. Compact shows only the panels you pick in Settings, expanded shows everything. Hover for the expand and settings buttons.
+- Opacity goes down to 5 %; by default the widget fades back to solid while the mouse is over it.
 - Right-click the widget or tray icon for the menu. Left-click the tray icon to show or hide the widget.
 - Settings pages: Panels, Theme, Alerts, Logging, Auto shutdown, Window (always on top, click-through, opacity, refresh rate, start with Windows, language, update check).
 - Switches: `/settings`, `/settings:Theme`, `/test-alert`.

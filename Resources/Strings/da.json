@@ -1,4 +1,8 @@
 {
+  "The widget always starts compact.": "Widgetten starter altid kompakt.",
+  "At very low values the widget is easy to lose; it still responds to the mouse unless click-through is on.": "Ved meget lave værdier er widgetten let at miste af syne; den reagerer stadig på musen, medmindre klik-igennem er slået til.",
+  "Fade back to full opacity while the mouse is over the widget": "Bliver helt synlig, mens musen er over widgetten",
+  "Opaque on hover": "Uigennemsigtig ved hover",
   "Dismiss until next launch": "Skjul indtil næste start",
   "Asks api.github.com for the latest release once per launch; nothing about this PC is sent.": "Spørger api.github.com om den nyeste udgivelse én gang pr. start; intet om denne PC sendes.",
   "Download": "Hent",
@@ -60,7 +64,7 @@
   "Cancelling pauses this rule until its condition clears. Apps will be force-closed.": "Annullering sætter reglen på pause, indtil betingelsen forsvinder. Programmer tvangslukkes.",
   "Can't write the log right now: {0}": "Kan ikke skrive loggen lige nu: {0}",
   "Chip over-temp": "Chip overophedet",
-  "Choose what the widget shows. The header with total power is always visible.": "Vælg hvad widgetten viser. Overskriften med den samlede effekt er altid synlig.",
+  "Choose what the compact view shows. The expanded view always shows every panel, and the header with total power is always visible.": "Vælg hvad den kompakte visning viser. Den udvidede visning viser altid alle paneler, og overskriften med den samlede effekt er altid synlig.",
   "cleared": "forsvundet",
   "Clicks pass through the widget. Unlock from the tray menu.": "Klik går gennem widgetten. Lås op fra proceslinjemenuen.",
   "Close": "Luk",

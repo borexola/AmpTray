@@ -1,4 +1,8 @@
 {
+  "The widget always starts compact.": "Le widget démarre toujours en vue compacte.",
+  "At very low values the widget is easy to lose; it still responds to the mouse unless click-through is on.": "Aux valeurs très basses, le widget est facile à perdre de vue ; il répond toujours à la souris sauf si les clics traversants sont activés.",
+  "Fade back to full opacity while the mouse is over the widget": "Revient à une opacité totale tant que la souris est sur le widget",
+  "Opaque on hover": "Opaque au survol",
   "Dismiss until next launch": "Masquer jusqu'au prochain lancement",
   "Asks api.github.com for the latest release once per launch; nothing about this PC is sent.": "Interroge api.github.com une fois par lancement pour la dernière version ; rien concernant ce PC n'est envoyé.",
   "Download": "Télécharger",
@@ -60,7 +64,7 @@
   "Cancelling pauses this rule until its condition clears. Apps will be force-closed.": "Annuler suspend cette règle jusqu'à ce que sa condition disparaisse. Les applications seront fermées de force.",
   "Can't write the log right now: {0}": "Impossible d'écrire le journal pour l'instant : {0}",
   "Chip over-temp": "Surchauffe de la puce",
-  "Choose what the widget shows. The header with total power is always visible.": "Choisissez ce que le widget affiche. L'en-tête avec la puissance totale est toujours visible.",
+  "Choose what the compact view shows. The expanded view always shows every panel, and the header with total power is always visible.": "Choisissez ce que la vue compacte affiche. La vue étendue affiche toujours tous les panneaux, et l'en-tête avec la puissance totale est toujours visible.",
   "cleared": "disparu",
   "Clicks pass through the widget. Unlock from the tray menu.": "Les clics traversent le widget. Déverrouillez depuis le menu de la zone de notification.",
   "Close": "Fermer",

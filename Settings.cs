@@ -11,7 +11,8 @@ public sealed class Settings
     public double? Top { get; set; }
     public bool Topmost { get; set; } = true;
     public bool ClickThrough { get; set; }
-    public double Opacity { get; set; } = 1.0;
+    public double Opacity { get; set; } = 1.0;      // 0.05 .. 1.0
+    public bool OpaqueOnHover { get; set; } = true; // fade back to 100 % while the mouse is over the widget
     public int PollMs { get; set; } = 1000;
     public bool Visible { get; set; } = true;
     public bool Expanded { get; set; }
@@ -47,6 +48,8 @@ public sealed class Settings
     // Automatic PC shutdown (off by default)
     public ShutdownSettings Shutdown { get; set; } = new();
 
+    public const double MinOpacity = 0.05;
+
     public static string DefaultLogFolder => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AmpTray", "Logs");
 
@@ -69,7 +72,7 @@ public sealed class Settings
                 if (string.IsNullOrWhiteSpace(s.LogFolder)) s.LogFolder = DefaultLogFolder;
                 s.PollMs = Math.Clamp(s.PollMs, 250, 5000);
                 s.GraphWindowSeconds = Math.Clamp(s.GraphWindowSeconds, 30, (int)PowerHistory.MaxAge.TotalSeconds);
-                s.Opacity = double.IsFinite(s.Opacity) ? Math.Clamp(s.Opacity, 0.3, 1.0) : 1.0;
+                s.Opacity = double.IsFinite(s.Opacity) ? Math.Clamp(s.Opacity, MinOpacity, 1.0) : 1.0;
                 s.AlarmVolume = Math.Clamp(s.AlarmVolume, 5, 100);
                 s.GpuIndex = Math.Max(0, s.GpuIndex);
                 s.LogIntervalSeconds = Math.Max(0, s.LogIntervalSeconds);

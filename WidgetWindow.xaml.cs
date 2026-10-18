@@ -31,7 +31,8 @@ public partial class WidgetWindow : Window
     private readonly (Ellipse Dot, TextBlock State)[] _faultCells = new (Ellipse, TextBlock)[6];
     private readonly TextBlock[] _faultNames = new TextBlock[6];
     private readonly TextBlock[] _pinHeaderCells = new TextBlock[PinHeaderKeys.Length];
-    private bool _expanded, _topmost = true, _clickThrough;
+    private bool _expanded, _topmost = true, _clickThrough, _opaqueOnHover = true;
+    private double _baseOpacity = 1;
     private SensorSnapshot? _last;
     private SessionStats? _stats;
     private string _port = "";
@@ -72,8 +73,18 @@ public partial class WidgetWindow : Window
         };
         MouseRightButtonUp += (_, _) => MenuRequested?.Invoke();
         // Hover buttons take no header space while hidden, so badges like ARMED aren't clipped.
-        MouseEnter += (_, _) => { HeaderButtons.Visibility = Visibility.Visible; Fade(HeaderButtons, 1); };
-        MouseLeave += (_, _) => { HeaderButtons.Visibility = Visibility.Collapsed; HeaderButtons.Opacity = 0; };
+        MouseEnter += (_, _) =>
+        {
+            HeaderButtons.Visibility = Visibility.Visible;
+            Fade(HeaderButtons, 1);
+            if (_opaqueOnHover) AnimateWindowOpacity(1);
+        };
+        MouseLeave += (_, _) =>
+        {
+            HeaderButtons.Visibility = Visibility.Collapsed;
+            HeaderButtons.Opacity = 0;
+            AnimateWindowOpacity(_baseOpacity);
+        };
 
         ExpandButton.Click += (_, _) => ExpandToggleRequested?.Invoke();
         SettingsButton.Click += (_, _) => SettingsRequested?.Invoke();
@@ -131,6 +142,18 @@ public partial class WidgetWindow : Window
         _clickThrough = on;
         ApplyExStyle();
     }
+
+    /// <summary>Resting opacity (down to almost invisible) and whether hovering brings the widget back to full.</summary>
+    public void SetOpacity(double value, bool opaqueOnHover)
+    {
+        _baseOpacity = value;
+        _opaqueOnHover = opaqueOnHover;
+        AnimateWindowOpacity(opaqueOnHover && IsMouseOver ? 1 : value);
+    }
+
+    // Window.Opacity is always driven by an animation here; a plain assignment would be overridden by it.
+    private void AnimateWindowOpacity(double to) =>
+        BeginAnimation(OpacityProperty, new DoubleAnimation(to, TimeSpan.FromMilliseconds(160)));
 
     /// <summary>Raises the widget above other windows once, without pinning it there.</summary>
     public void BringToFront()

@@ -1,4 +1,8 @@
 {
+  "The widget always starts compact.": "Widżet zawsze uruchamia się w widoku kompaktowym.",
+  "At very low values the widget is easy to lose; it still responds to the mouse unless click-through is on.": "Przy bardzo niskich wartościach łatwo zgubić widżet; nadal reaguje na mysz, chyba że włączono przepuszczanie kliknięć.",
+  "Fade back to full opacity while the mouse is over the widget": "Wraca do pełnej widoczności, gdy kursor jest nad widżetem",
+  "Opaque on hover": "Nieprzezroczysty po najechaniu",
   "Dismiss until next launch": "Ukryj do następnego uruchomienia",
   "Asks api.github.com for the latest release once per launch; nothing about this PC is sent.": "Odpytuje api.github.com o najnowsze wydanie raz na uruchomienie; nic o tym komputerze nie jest wysyłane.",
   "Download": "Pobierz",
@@ -60,7 +64,7 @@
   "Cancelling pauses this rule until its condition clears. Apps will be force-closed.": "Anulowanie wstrzymuje tę regułę, dopóki jej warunek nie zniknie. Aplikacje zostaną zamknięte na siłę.",
   "Can't write the log right now: {0}": "Nie można teraz zapisać dziennika: {0}",
   "Chip over-temp": "Przegrzanie układu",
-  "Choose what the widget shows. The header with total power is always visible.": "Wybierz, co pokazuje widżet. Nagłówek z całkowitą mocą jest zawsze widoczny.",
+  "Choose what the compact view shows. The expanded view always shows every panel, and the header with total power is always visible.": "Wybierz, co pokazuje widok kompaktowy. Widok rozszerzony zawsze pokazuje wszystkie panele, a nagłówek z całkowitą mocą jest zawsze widoczny.",
   "cleared": "ustąpiła",
   "Clicks pass through the widget. Unlock from the tray menu.": "Kliknięcia przechodzą przez widżet. Odblokuj z menu zasobnika.",
   "Close": "Zamknij",
