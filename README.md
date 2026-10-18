@@ -44,6 +44,7 @@ Both are self-contained (no .NET install needed), Windows 10/11 x64. The install
 - A Windows window cannot exist before someone signs in, so protection from boot is handled by a **background service**: the same exe started as `AmpTray.exe /service` under LocalSystem. It polls the device and GPU, writes the CSV log and applies the auto-shutdown rules exactly like the widget, using the same read-only requests. While it runs, it is the one that issues the shutdown (with Windows' own countdown when a countdown is configured) and the widget shows the banner and can still cancel.
 - The installer offers the service as a checkbox (on by default; `INSTALLSERVICE=0` for unattended installs). Settings → Window → Background monitoring turns it on or off later, which asks for administrator approval.
 - The service reads `C:\ProgramData\AmpTray\service.json`, which the widget keeps in sync with your settings, and logs to `service.log` next to it.
+- The service also provides the **FPS counter** shown at the top of the widget: it listens to the Windows graphics present events (the same ones PresentMon uses, which need elevated rights) and reports frames per second for the foreground game, or the busiest presenting process. Without the service the slot shows n/a.
 
 ## Fault alerts
 

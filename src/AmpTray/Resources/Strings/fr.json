@@ -1,4 +1,7 @@
 {
+  "Frames per second presented by {0}": "Images par seconde présentées par {0}",
+  "The FPS counter needs the background service (Settings → Window → Background monitoring)": "Le compteur FPS nécessite le service en arrière-plan (Paramètres → Fenêtre → Surveillance en arrière-plan)",
+  "No game is presenting frames right now": "Aucun jeu n'affiche d'images en ce moment",
   "Service installed but not running.": "Service installé mais arrêté.",
   "Service not installed.": "Service non installé.",
   "Background monitoring": "Surveillance en arrière-plan",

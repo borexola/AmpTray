@@ -48,7 +48,7 @@ public partial class App : System.Windows.Application, ISettingsHost
     private ushort _ackMask;
     private bool _alerting, _testing;
     private string _alertMessage = "";
-    private DispatcherTimer? _testTimer;
+    private DispatcherTimer? _testTimer, _fpsTimer;
     private readonly ShutdownMonitor _shutdown = new();
     private readonly System.Collections.Generic.HashSet<ShutdownRule> _notifiedPending = new();
     private System.Collections.Generic.IReadOnlyList<PendingRule> _pending = Array.Empty<PendingRule>();
@@ -156,6 +156,11 @@ public partial class App : System.Windows.Application, ISettingsHost
         _gpu.Start();
         if (_settings.CheckUpdates) _ = CheckForUpdatesAsync();
 
+        // FPS comes from the background service's fps.json; show the foreground process, else the busiest one.
+        _fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _fpsTimer.Tick += (_, _) => UpdateFps();
+        _fpsTimer.Start();
+
         // Optional switches: /settings[:Page] opens the settings window, /test-alert fires the 5 s test alert.
         var settingsArg = e.Args.FirstOrDefault(a => a.StartsWith("/settings", StringComparison.OrdinalIgnoreCase));
         if (settingsArg != null) OpenSettings(settingsArg.Contains(':') ? settingsArg[(settingsArg.IndexOf(':') + 1)..] : null);
@@ -195,7 +200,26 @@ public partial class App : System.Windows.Application, ISettingsHost
         RefreshMenu();
     }
 
+    // ===== FPS =====
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+
+    private void UpdateFps()
+    {
+        if (_window == null || !_window.IsVisible) return;
+        var snap = FpsSnapshot.TryRead();
+        FpsEntry? pick = null;
+        if (snap != null && snap.Processes.Count > 0)
+        {
+            GetWindowThreadProcessId(GetForegroundWindow(), out uint fg);
+            pick = snap.Processes.FirstOrDefault(p => p.Pid == (int)fg) ?? snap.Processes[0];
+        }
+        _window.ShowFps(pick?.Fps, pick?.Name, snap != null || ServiceManager.IsRunningCached());
+    }
+
     // ===== Updates =====
+
     private async System.Threading.Tasks.Task CheckForUpdatesAsync()
     {
         var info = await UpdateChecker.CheckAsync();

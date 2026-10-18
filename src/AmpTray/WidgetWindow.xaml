@@ -38,6 +38,11 @@
                         <TextBlock x:Name="GpuName" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel x:Name="FpsSlot" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                <TextBlock x:Name="FpsText" FontSize="13.5" FontWeight="SemiBold" FontFamily="{StaticResource DisplayFont}"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="FPS" FontSize="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="4,0,0,0" />
+                            </StackPanel>
                             <local:ArcGauge x:Name="GpuGauge" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center" />
                             <TextBlock Text="GPU" FontSize="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="0,0,4,0" />
                             <TextBlock x:Name="GpuTempText" FontSize="13.5" FontWeight="SemiBold" FontFamily="{StaticResource DisplayFont}"

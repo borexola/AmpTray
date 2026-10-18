@@ -1,4 +1,7 @@
 {
+  "Frames per second presented by {0}": "Klatki na sekundę wyświetlane przez {0}",
+  "The FPS counter needs the background service (Settings → Window → Background monitoring)": "Licznik FPS wymaga usługi w tle (Ustawienia → Okno → Monitorowanie w tle)",
+  "No game is presenting frames right now": "Żadna gra nie wyświetla teraz klatek",
   "Service installed but not running.": "Usługa zainstalowana, ale nie działa.",
   "Service not installed.": "Usługa niezainstalowana.",
   "Background monitoring": "Monitorowanie w tle",

@@ -17,6 +17,7 @@ public sealed class BackgroundMonitor : IDisposable
     private readonly object _gate = new();
     private readonly ShutdownMonitor _rules = new();
     private readonly DataLogger _logger = new();
+    private readonly FpsTracker _fps = new();
     private readonly Timer _reload;
 
     private ServiceSettings _cfg = ServiceSettings.Load();
@@ -48,6 +49,7 @@ public sealed class BackgroundMonitor : IDisposable
 
         _device.Start();
         _gpu.Start();
+        _fps.Start();
         _reload.Change(5000, 5000);
     }
 
@@ -136,6 +138,7 @@ public sealed class BackgroundMonitor : IDisposable
     public void Dispose()
     {
         _reload.Dispose();
+        _fps.Dispose();
         _device?.Dispose();
         _gpu?.Dispose();
         _logger.Dispose();

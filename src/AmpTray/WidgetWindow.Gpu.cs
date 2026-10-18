@@ -29,6 +29,32 @@ public partial class WidgetWindow
         public required TextBlock Value;
     }
 
+    private double? _fps;
+    private string? _fpsProcess;
+    private bool _fpsServiceRunning;
+
+    /// <summary>Frames per second of the foreground (or busiest) process, measured by the background service.</summary>
+    public void ShowFps(double? fps, string? processName, bool serviceRunning)
+    {
+        _fps = fps;
+        _fpsProcess = processName;
+        _fpsServiceRunning = serviceRunning;
+        if (fps is double f)
+        {
+            FpsText.Text = f.ToString("0");
+            Ref(FpsText, TextBlock.ForegroundProperty, "TextPrimary");
+            FpsSlot.ToolTip = Loc.F("Frames per second presented by {0}", processName ?? "?");
+        }
+        else
+        {
+            FpsText.Text = "n/a";
+            Ref(FpsText, TextBlock.ForegroundProperty, "TextMuted");
+            FpsSlot.ToolTip = serviceRunning
+                ? Loc.T("No game is presenting frames right now")
+                : Loc.T("The FPS counter needs the background service (Settings → Window → Background monitoring)");
+        }
+    }
+
     public void SetGpuGraph(PowerHistory history)
     {
         Graph.GpuHistory = history;
@@ -39,6 +65,7 @@ public partial class WidgetWindow
     {
         for (int i = 0; i < GpuBarKeys.Length; i++) _gpuRows[i].Label.Text = Loc.T(GpuBarKeys[i]);
         foreach (var (key, label) in _gpuDetailLabels) label.Text = Loc.T(key);
+        ShowFps(_fps, _fpsProcess, _fpsServiceRunning);
     }
 
     public void ShowGpu(GpuSnapshot? g, GpuStats stats)
