@@ -48,7 +48,7 @@ Arm it in Settings or the tray menu. It runs `shutdown /s /f /t 0` when a rule h
 
 ## Build
 
-Needs the .NET 10 SDK. `dotnet build` for a debug build; `.\build.ps1` publishes, zips and builds the MSI into `artifacts\out` (installs WiX 5 locally if needed). Pushing a tag `vX.Y.Z` makes the Build workflow publish both files as a GitHub release.
+Needs the .NET 10 SDK. `dotnet build` at the root builds `AmpTray.slnx`; `.\build\build.ps1` publishes, zips and builds the MSI into `artifacts\out` (installs WiX 5 locally if needed). Sources live in `src\AmpTray`, the installer and scripts in `build`, screenshots in `docs`. Pushing a tag `vX.Y.Z` makes the Build workflow publish both files as a GitHub release.
 
 <details>
 <summary>More screenshots</summary>

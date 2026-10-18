@@ -3,9 +3,9 @@
   Builds the self-contained app, a portable zip and the MSI installer into artifacts\out.
 
 .EXAMPLE
-  .\build.ps1                      # version from the csproj (0.0.1)
-  .\build.ps1 -Version 0.2.0       # what CI runs for tag v0.2.0
-  .\build.ps1 -SkipInstaller       # just publish + zip
+  .\build\build.ps1                      # version from the csproj (0.0.1)
+  .\build\build.ps1 -Version 0.2.0       # what CI runs for tag v0.2.0
+  .\build\build.ps1 -SkipInstaller       # just publish + zip
 #>
 param(
     [string]$Version = "",
@@ -13,13 +13,14 @@ param(
     [switch]$SkipInstaller
 )
 $ErrorActionPreference = 'Stop'
-$root = $PSScriptRoot
+$root = Split-Path $PSScriptRoot -Parent   # repository root
+$src = Join-Path $root "src\AmpTray"
 $publish = Join-Path $root "artifacts\publish"
 $out = Join-Path $root "artifacts\out"
 $WixVersion = "5.0.2"
 
 if (-not $Version) {
-    $Version = ([xml](Get-Content "$root\AmpTray.csproj")).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+    $Version = ([xml](Get-Content "$src\AmpTray.csproj")).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
 }
 # MSI/file versions must be numeric: drop any -prerelease suffix.
 $numericVersion = ($Version -split '-')[0]
@@ -27,10 +28,10 @@ $numericVersion = ($Version -split '-')[0]
 Remove-Item -Recurse -Force $publish, $out -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $out | Out-Null
 
-if (-not (Test-Path "$root\Assets\app.ico")) { & "$root\build\make-icon.ps1" }
+if (-not (Test-Path "$src\Assets\app.ico")) { & "$PSScriptRoot\make-icon.ps1" }
 
 Write-Host "== Publishing $Version (self-contained win-x64)"
-dotnet publish "$root\AmpTray.csproj" -c $Configuration -r win-x64 -p:SelfContained=true `
+dotnet publish "$src\AmpTray.csproj" -c $Configuration -r win-x64 -p:SelfContained=true `
     -p:Version=$Version -p:FileVersion=$numericVersion -p:PublishSingleFile=false -o $publish /nologo -v q
 if ($LASTEXITCODE) { throw "dotnet publish failed ($LASTEXITCODE)" }
 Get-ChildItem $publish -Filter *.pdb | Remove-Item -Force
@@ -68,7 +69,7 @@ Push-Location $root
 try {
     & $wixExe extension add "WixToolset.Util.wixext/$WixVersion" | Out-Null
     & $wixExe extension add "WixToolset.UI.wixext/$WixVersion" | Out-Null
-    & $wixExe build "$root\installer\Product.wxs" -arch x64 -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext `
+    & $wixExe build "$PSScriptRoot\installer\Product.wxs" -arch x64 -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext `
         -d "Version=$numericVersion" -d "PublishDir=$publish" -d "SourceDir=$root" `
         -pdbtype none -o "$out\AmpTray-$Version-x64.msi"
     if ($LASTEXITCODE) { throw "wix build failed ($LASTEXITCODE)" }

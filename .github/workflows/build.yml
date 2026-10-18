@@ -39,7 +39,7 @@ jobs:
 
       - name: Build, zip and MSI
         shell: pwsh
-        run: ./build.ps1 -Version '${{ steps.ver.outputs.version }}'
+        run: ./build/build.ps1 -Version '${{ steps.ver.outputs.version }}'
 
       - uses: actions/upload-artifact@v4
         with:

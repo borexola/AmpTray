@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   WiX 5 definition of the AmpTray MSI.
-  Built by build.ps1 with:  -d Version=x.y.z  -d PublishDir=<self-contained publish folder>  -d SourceDir=<repo root>
+  Built by build\build.ps1 with:  -d Version=x.y.z  -d PublishDir=<self-contained publish folder>  -d SourceDir=<repo root>
 
   Silent install with a preset language:  msiexec /i AmpTray-x.y.z-x64.msi /qn APPLANGUAGE=fr
   (APPLANGUAGE: auto | en | fr | da | pl)
@@ -22,7 +22,7 @@
                   Schedule="afterInstallInitialize" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
-    <Icon Id="AppIcon.ico" SourceFile="$(var.SourceDir)\Assets\app.ico" />
+    <Icon Id="AppIcon.ico" SourceFile="$(var.SourceDir)\src\AmpTray\Assets\app.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/borexola/AmpTray" />
     <Property Id="ARPHELPLINK" Value="https://github.com/borexola/AmpTray/issues" />

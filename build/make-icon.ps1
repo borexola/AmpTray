@@ -1,5 +1,5 @@
 # Renders the app icon (dark rounded tile with six wire bars) at several sizes and packs them into Assets\app.ico.
-param([string]$Out = (Join-Path $PSScriptRoot "..\Assets\app.ico"))
+param([string]$Out = (Join-Path $PSScriptRoot "..\src\AmpTray\Assets\app.ico"))
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
