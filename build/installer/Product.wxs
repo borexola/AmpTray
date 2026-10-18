@@ -34,7 +34,16 @@
     <!-- 1 = also register the background service (runs from boot, before sign-in). INSTALLSERVICE=0 to skip. -->
     <Property Id="INSTALLSERVICE" Value="1" Secure="yes" />
 
-    <!-- A running widget would lock its files during an upgrade; stop it first. -->
+    <!-- Only AmpTray's own processes can hold its files. Restart Manager would also list unrelated
+         programs (editors, IDEs) by heuristics, so it is switched off and the widget and service are
+         stopped by the installer itself before the files-in-use check (InstallValidate). -->
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
+    <!-- WixQuietExec runs the command without a console window. sc stop is allowed for signed-in users by the
+         service's security descriptor; taskkill ends the widget (same user). Errors are ignored (nothing running). -->
+    <SetProperty Id="WixQuietExecCmdLine" Sequence="execute" Before="StopOwnProcesses"
+                 Value="&quot;[SystemFolder]cmd.exe&quot; /c sc stop AmpTray &amp; taskkill /F /IM AmpTray.exe &amp; timeout /t 2 /nobreak" />
+    <CustomAction Id="StopOwnProcesses" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="immediate" Return="ignore" />
+    <!-- Second net for anything started in between. -->
     <util:CloseApplication Id="CloseWidget" Target="AmpTray.exe" CloseMessage="no"
                            TerminateProcess="0" RebootPrompt="no" Timeout="5" />
 
@@ -78,6 +87,7 @@
                   ExeCommand="&quot;[INSTALLFOLDER]AmpTray.exe&quot; /uninstall-service"
                   Execute="deferred" Impersonate="no" Return="ignore" />
     <InstallExecuteSequence>
+      <Custom Action="StopOwnProcesses" After="CostFinalize" Condition="NOT REMOVE OR REMOVE=&quot;ALL&quot;" />
       <Custom Action="UninstallService" Before="RemoveFiles" Condition="Installed AND REMOVE=&quot;ALL&quot;" />
       <Custom Action="InstallService" After="InstallFiles" Condition="NOT REMOVE AND INSTALLSERVICE=1" />
       <Custom Action="LaunchWidget" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />

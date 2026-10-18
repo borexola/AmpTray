@@ -80,6 +80,8 @@ public static class ServiceManager
                 Check(Run("sc.exe", $"create {Name} binPath= \"{bin}\" start= auto DisplayName= \"{DisplayName}\" obj= LocalSystem"));
             Run("sc.exe", $"description {Name} \"{Description}\"");
             Run("sc.exe", $"failure {Name} reset= 86400 actions= restart/5000/restart/30000/restart/60000");
+            // Let signed-in users start and stop the service (installer upgrades and the widget), not reconfigure it.
+            Run("sc.exe", $"sdset {Name} D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWRPWPLOCRRC;;;IU)(A;;CCLCSWRPWPLOCRRC;;;SU)(A;;CCLCSWRPWPLOCRRC;;;AU)");
             if (!IsRunning()) Run("sc.exe", $"start {Name}");
             ServiceSettings.Log($"Service installed from {exe}");
             return 0;
