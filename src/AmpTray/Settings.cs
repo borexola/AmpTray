@@ -18,6 +18,7 @@ public sealed class Settings
     public bool Expanded { get; set; }
     public string Language { get; set; } = Loc.Auto; // "auto", "en", "fr", "da", "pl"
     public bool CheckUpdates { get; set; } = true;   // one anonymous GitHub releases query per launch
+    public bool StartupConfigured { get; set; }      // first run registers "Start with Windows" once; the user can turn it off
 
     // Panels
     public bool ShowWires { get; set; } = true;

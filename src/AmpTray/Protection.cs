@@ -234,19 +234,41 @@ public static class PcShutdown
         }
     }
 
+    /// <summary>Cancels a shutdown that shutdown.exe has scheduled but not yet carried out (delayed form).</summary>
+    public static void Abort()
+    {
+        try
+        {
+            using var p = Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "shutdown.exe"), "/a")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+            p?.WaitForExit(5000);
+        }
+        catch
+        {
+            // Nothing scheduled, or no permission: nothing to undo.
+        }
+    }
+
     /// <summary>
-    /// Immediate forced shutdown: /f closes apps that would otherwise block it with save prompts.
+    /// Forced shutdown: /f closes apps that would otherwise block it with save prompts. With
+    /// <paramref name="delaySeconds"/> &gt; 0 Windows shows its own countdown to signed-in users
+    /// and the shutdown can still be cancelled with <see cref="Abort"/>.
     /// Returns false if shutdown.exe could not be started; a later refusal by Windows (non-zero exit,
     /// e.g. 1190 = a shutdown is already scheduled) is reported through <paramref name="onFailure"/>.
     /// </summary>
-    public static bool Execute(string reason, string logFolder, Action<string> onFailure)
+    public static bool Execute(string reason, string logFolder, Action<string> onFailure) => Execute(reason, logFolder, 0, onFailure);
+
+    public static bool Execute(string reason, string logFolder, int delaySeconds, Action<string> onFailure)
     {
         if (Environment.GetEnvironmentVariable("WIREVIEW_SHUTDOWN_DRYRUN") == "1")
         {
             Log(logFolder, "DRY RUN (WIREVIEW_SHUTDOWN_DRYRUN=1), would shut down now: " + reason);
             return true;
         }
-        Log(logFolder, "SHUTDOWN: " + reason);
+        Log(logFolder, (delaySeconds > 0 ? $"SHUTDOWN in {delaySeconds} s: " : "SHUTDOWN: ") + reason);
 
         string comment = (Loc.T("AmpTray auto shutdown:") + " " + reason).Replace("\"", "'");
         if (comment.Length > 500) comment = comment[..500];
@@ -256,7 +278,7 @@ public static class PcShutdown
             p = Process.Start(new ProcessStartInfo
             {
                 FileName = Path.Combine(Environment.SystemDirectory, "shutdown.exe"),
-                Arguments = $"/s /f /t 0 /c \"{comment}\"",
+                Arguments = $"/s /f /t {Math.Clamp(delaySeconds, 0, 600)} /c \"{comment}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true,
             });

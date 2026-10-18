@@ -1,4 +1,12 @@
 {
+  "Service installed but not running.": "Service installé mais arrêté.",
+  "Service not installed.": "Service non installé.",
+  "Background monitoring": "Surveillance en arrière-plan",
+  "The service follows the settings above (rules, logging, refresh rate) and picks up changes within a few seconds. While it runs, it is the one that shuts the PC down; the widget shows the countdown and can still cancel.": "Le service suit les réglages ci-dessus (règles, journal, fréquence) et prend les changements en compte en quelques secondes. Tant qu'il tourne, c'est lui qui éteint le PC ; le widget affiche le compte à rebours et peut toujours annuler.",
+  "Run before anyone signs in (Windows service)": "Fonctionner avant toute ouverture de session (service Windows)",
+  "Service installed and running.": "Service installé et en cours d'exécution.",
+  "Keeps CSV logging and the auto-shutdown rules running from boot, with nobody signed in. Turning this on or off asks for administrator approval.": "Maintient le journal CSV et les règles d'arrêt automatique actifs dès le démarrage, sans personne connecté. Activer ou désactiver ceci demande une approbation administrateur.",
+  "The change was not applied: administrator approval was declined or the command failed.": "Le changement n'a pas été appliqué : l'approbation administrateur a été refusée ou la commande a échoué.",
   "The widget always starts compact.": "Le widget démarre toujours en vue compacte.",
   "At very low values the widget is easy to lose; it still responds to the mouse unless click-through is on.": "Aux valeurs très basses, le widget est facile à perdre de vue ; il répond toujours à la souris sauf si les clics traversants sont activés.",
   "Fade back to full opacity while the mouse is over the widget": "Revient à une opacité totale tant que la souris est sur le widget",

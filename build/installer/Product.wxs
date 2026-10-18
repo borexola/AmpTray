@@ -31,6 +31,8 @@
 
     <!-- Language the widget should use; chosen on the first dialog or passed on the command line. -->
     <Property Id="APPLANGUAGE" Value="auto" Secure="yes" />
+    <!-- 1 = also register the background service (runs from boot, before sign-in). INSTALLSERVICE=0 to skip. -->
+    <Property Id="INSTALLSERVICE" Value="1" Secure="yes" />
 
     <!-- A running widget would lock its files during an upgrade; stop it first. -->
     <util:CloseApplication Id="CloseWidget" Target="AmpTray.exe" CloseMessage="no"
@@ -67,7 +69,17 @@
     <CustomAction Id="LaunchWidget" Directory="INSTALLFOLDER"
                   ExeCommand="&quot;[INSTALLFOLDER]AmpTray.exe&quot;"
                   Execute="immediate" Impersonate="yes" Return="asyncNoWait" />
+    <!-- Background service: registered by the exe itself (elevated, as SYSTEM) after the files are in place,
+         removed before the files go away on uninstall and on the old side of an upgrade. -->
+    <CustomAction Id="InstallService" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]AmpTray.exe&quot; /install-service"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+    <CustomAction Id="UninstallService" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]AmpTray.exe&quot; /uninstall-service"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
     <InstallExecuteSequence>
+      <Custom Action="UninstallService" Before="RemoveFiles" Condition="Installed AND REMOVE=&quot;ALL&quot;" />
+      <Custom Action="InstallService" After="InstallFiles" Condition="NOT REMOVE AND INSTALLSERVICE=1" />
       <Custom Action="LaunchWidget" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &gt; 3" />
     </InstallExecuteSequence>
 
@@ -100,7 +112,9 @@
         <Control Id="Intro" Type="Text" X="25" Y="60" Width="320" Height="30" NoPrefix="yes"
                  Text="AmpTray is an unofficial, read-only desktop widget for the Thermal Grizzly WireView Pro II. It installs to Program Files and adds a Start Menu entry." />
 
-        <Control Id="Languages" Type="RadioButtonGroup" Property="APPLANGUAGE" X="40" Y="100" Width="300" Height="120">
+        <Control Id="ServiceCheck" Type="CheckBox" Property="INSTALLSERVICE" CheckBoxValue="1" X="25" Y="212" Width="330" Height="17"
+                 Text="Also keep monitoring before anyone signs in (background service)" />
+        <Control Id="Languages" Type="RadioButtonGroup" Property="APPLANGUAGE" X="40" Y="100" Width="300" Height="108">
           <RadioButtonGroup Property="APPLANGUAGE">
             <RadioButton Value="auto" X="0" Y="0" Width="280" Height="16" Text="Follow the Windows display language" />
             <RadioButton Value="en" X="0" Y="22" Width="280" Height="16" Text="English" />

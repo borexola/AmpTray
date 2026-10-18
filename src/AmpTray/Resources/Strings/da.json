@@ -1,4 +1,12 @@
 {
+  "Service installed but not running.": "Tjenesten er installeret men kører ikke.",
+  "Service not installed.": "Tjenesten er ikke installeret.",
+  "Background monitoring": "Overvågning i baggrunden",
+  "The service follows the settings above (rules, logging, refresh rate) and picks up changes within a few seconds. While it runs, it is the one that shuts the PC down; the widget shows the countdown and can still cancel.": "Tjenesten følger indstillingerne ovenfor (regler, logning, opdateringshastighed) og opfanger ændringer inden for få sekunder. Mens den kører, er det den, der lukker PC'en ned; widgetten viser nedtællingen og kan stadig annullere.",
+  "Run before anyone signs in (Windows service)": "Kør før nogen logger på (Windows-tjeneste)",
+  "Service installed and running.": "Tjenesten er installeret og kører.",
+  "Keeps CSV logging and the auto-shutdown rules running from boot, with nobody signed in. Turning this on or off asks for administrator approval.": "Holder CSV-logning og reglerne for automatisk nedlukning kørende fra opstart, uden at nogen er logget på. At slå dette til eller fra kræver administratorgodkendelse.",
+  "The change was not applied: administrator approval was declined or the command failed.": "Ændringen blev ikke udført: administratorgodkendelsen blev afvist, eller kommandoen fejlede.",
   "The widget always starts compact.": "Widgetten starter altid kompakt.",
   "At very low values the widget is easy to lose; it still responds to the mouse unless click-through is on.": "Ved meget lave værdier er widgetten let at miste af syne; den reagerer stadig på musen, medmindre klik-igennem er slået til.",
   "Fade back to full opacity while the mouse is over the widget": "Bliver helt synlig, mens musen er over widgetten",

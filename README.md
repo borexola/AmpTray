@@ -38,6 +38,13 @@ Both are self-contained (no .NET install needed), Windows 10/11 x64. The install
 - Settings pages: Panels, Theme, Alerts, Logging, Auto shutdown, Window (always on top, click-through, opacity, refresh rate, start with Windows, language, update check).
 - Switches: `/settings`, `/settings:Theme`, `/test-alert`.
 
+## Starting with Windows and running before sign-in
+
+- The widget registers itself to start when you sign in (Settings → Window → Start with Windows turns it off).
+- A Windows window cannot exist before someone signs in, so protection from boot is handled by a **background service**: the same exe started as `AmpTray.exe /service` under LocalSystem. It polls the device and GPU, writes the CSV log and applies the auto-shutdown rules exactly like the widget, using the same read-only requests. While it runs, it is the one that issues the shutdown (with Windows' own countdown when a countdown is configured) and the widget shows the banner and can still cancel.
+- The installer offers the service as a checkbox (on by default; `INSTALLSERVICE=0` for unattended installs). Settings → Window → Background monitoring turns it on or off later, which asks for administrator approval.
+- The service reads `C:\ProgramData\AmpTray\service.json`, which the widget keeps in sync with your settings, and logs to `service.log` next to it.
+
 ## Fault alerts
 
 On an active device fault every monitor gets a pulsing red frame, the widget flashes, a two-tone alarm loops and Windows shows a notification. Works with the widget hidden in the tray. Press **Acknowledge** to stop it; a different new fault alerts again. A fault marked **logged** is latched on the device and is cleared in the official app.

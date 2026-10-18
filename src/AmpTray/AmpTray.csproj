@@ -10,6 +10,7 @@
     <AssemblyName>AmpTray</AssemblyName>
     <RootNamespace>AmpTray</RootNamespace>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <StartupObject>AmpTray.Program</StartupObject>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -34,6 +35,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.IO.Ports" Version="9.0.0" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>

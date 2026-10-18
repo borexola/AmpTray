@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 using AmpTray.Device;
 using AmpTray.Gpu;
+using AmpTray.Service;
 using Forms = System.Windows.Forms;
 using WpfBrush = System.Windows.Media.SolidColorBrush;
 
@@ -53,7 +54,7 @@ public partial class App : System.Windows.Application, ISettingsHost
     private System.Collections.Generic.IReadOnlyList<PendingRule> _pending = Array.Empty<PendingRule>();
     private ShutdownCountdownWindow? _countdown;
     private ShutdownRule? _countdownRule;
-    private bool _shutdownIssued, _mutexWarned;
+    private bool _shutdownIssued, _mutexWarned, _deferredToService;
     private DateTime _shutdownRetryNotBefore = DateTime.MinValue;
     private Forms.ToolStripMenuItem? _armItem, _cancelShutdownItem;
     private string _iconKey = "";
@@ -105,6 +106,14 @@ public partial class App : System.Windows.Application, ISettingsHost
         _settings = Settings.Load();
         _settings.Expanded = false; // always start compact; expanded is a per-session view
         ApplyInstallerLanguage(_settings);
+        if (!_settings.StartupConfigured)
+        {
+            // Start with Windows is on by default; Settings → Window turns it off.
+            // Never replace an entry that already exists (e.g. the installed copy's, when a portable copy runs).
+            try { if (!StartupEnabled) StartupEnabled = true; } catch { }
+            _settings.StartupConfigured = true;
+            _settings.Save();
+        }
         Theme.Apply(Theme.Resolve(_settings));
         Loc.Apply(_settings.Language);
         Loc.Changed += OnLanguageChanged;
@@ -314,6 +323,20 @@ public partial class App : System.Windows.Application, ISettingsHost
         _iconKey = "";
         UpdateTray();
         s.Save();
+
+        // The background service follows the same rules, logging and refresh rate.
+        if (ServiceManager.IsInstalled()) ServiceSettings.FromUser(s).TrySave();
+    }
+
+    public bool ServiceInstalled => ServiceManager.IsInstalled();
+    public bool ServiceRunning => ServiceManager.IsRunning();
+
+    /// <summary>Installs or removes the service through an elevated copy of this exe (UAC prompt).</summary>
+    public bool SetServiceInstalled(bool on)
+    {
+        bool ok = ServiceManager.RunElevated(on ? "/install-service" : "/uninstall-service");
+        if (ok && on) ServiceSettings.FromUser(_settings).TrySave();
+        return ok;
     }
 
     /// <summary>Live preview while the opacity slider is being dragged; the value is saved by ApplySettings afterwards.</summary>
@@ -439,7 +462,23 @@ public partial class App : System.Windows.Application, ISettingsHost
         }
 
         if (result.Triggered != null && _countdown == null && !_shutdownIssued && now >= _shutdownRetryNotBefore)
-            TriggerShutdown(result.Triggered);
+        {
+            // When the background service is running it issues the shutdown (it also covers the time
+            // before sign-in); the widget keeps showing the banner and offers Cancel.
+            if (ServiceManager.IsRunningCached())
+            {
+                if (!_deferredToService) PcShutdown.Log(_settings.LogFolder, "Rule triggered in the widget; the background service issues the shutdown");
+                _deferredToService = true;
+            }
+            else
+            {
+                TriggerShutdown(result.Triggered);
+            }
+        }
+        else if (result.Triggered == null)
+        {
+            _deferredToService = false;
+        }
 
         RefreshMenu();
     }
@@ -493,6 +532,8 @@ public partial class App : System.Windows.Application, ISettingsHost
         _pending = Array.Empty<PendingRule>();
         _window?.ShowShutdownPending(null, 0);
         _countdown?.Close(); // raises Cancelled, which suppresses the triggering rule too
+        // A shutdown the service already scheduled (shutdown /t N) can still be called off.
+        if (ServiceManager.IsRunningCached()) PcShutdown.Abort();
         RefreshMenu();
     }
 

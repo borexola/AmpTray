@@ -20,6 +20,9 @@ public interface ISettingsHost
     void TestAlert();
     void TestShutdown();
     void PreviewOpacity(double opacity);
+    bool ServiceInstalled { get; }
+    bool ServiceRunning { get; }
+    bool SetServiceInstalled(bool on);
     bool StartupEnabled { get; set; }
     string LogStatus { get; }
 }
@@ -35,6 +38,7 @@ public partial class SettingsWindow : Window
     private readonly Dictionary<string, RadioButton> _nav = new();
     private readonly List<Action> _pendingCommits = new();
     private string _current = "Panels";
+    private bool _serviceChangeFailed;
 
     public SettingsWindow(Settings settings, ISettingsHost host, string? page = null)
     {
@@ -297,6 +301,33 @@ public partial class SettingsWindow : Window
         var startup = new CheckBox { Style = Res("Switch"), IsChecked = _host.StartupEnabled, Content = Labelled(Loc.T("Start with Windows"), null) };
         startup.Click += (_, _) => { _host.StartupEnabled = startup.IsChecked == true; startup.IsChecked = _host.StartupEnabled; };
         Page.Children.Add(startup);
+
+        Header(Loc.T("Background monitoring"), null);
+        bool installed = _host.ServiceInstalled;
+        var svc = new CheckBox
+        {
+            Style = Res("Switch"),
+            IsChecked = installed,
+            Content = Labelled(Loc.T("Run before anyone signs in (Windows service)"),
+                Loc.T("Keeps CSV logging and the auto-shutdown rules running from boot, with nobody signed in. Turning this on or off asks for administrator approval.")),
+        };
+        svc.Click += (_, _) =>
+        {
+            bool want = svc.IsChecked == true;
+            _serviceChangeFailed = !_host.SetServiceInstalled(want);
+            ShowPage("Window");
+        };
+        Page.Children.Add(svc);
+        Note(installed
+            ? (_host.ServiceRunning ? Loc.T("Service installed and running.") : Loc.T("Service installed but not running."))
+            : Loc.T("Service not installed."));
+        if (_serviceChangeFailed)
+        {
+            _serviceChangeFailed = false;
+            Note(Loc.T("The change was not applied: administrator approval was declined or the command failed."));
+        }
+        Note(Loc.T("The service follows the settings above (rules, logging, refresh rate) and picks up changes within a few seconds. While it runs, it is the one that shuts the PC down; the widget shows the countdown and can still cancel."));
+
         Toggle(Loc.T("Check for updates at startup"), Loc.T("Asks api.github.com for the latest release once per launch; nothing about this PC is sent."),
             () => _s.CheckUpdates, v => _s.CheckUpdates = v);
 
