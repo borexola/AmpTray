@@ -83,7 +83,7 @@
                             <Button x:Name="SettingsButton" Style="{StaticResource IconButton}" Content="&#xE713;" />
                         </StackPanel>
 
-                        <TextBlock x:Name="TotalPower" Grid.Column="2" Text="— W" FontSize="22" FontWeight="SemiBold"
+                        <TextBlock x:Name="TotalPower" Grid.Column="2" Text="n/a" FontSize="22" FontWeight="SemiBold"
                                    FontFamily="{StaticResource DisplayFont}" HorizontalAlignment="Right" />
 
                         <TextBlock x:Name="StatusText" Grid.Row="1" Grid.ColumnSpan="2" FontSize="11"

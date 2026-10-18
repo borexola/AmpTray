@@ -52,8 +52,7 @@ public sealed class FaultAlert : IDisposable
         _wav?.Dispose();
     }
 
-    // ---- Overlay ----
-
+    // ===== Overlay =====
     private static Window CreateOverlay(System.Drawing.Rectangle bounds, string message)
     {
         var crit = ((SolidColorBrush)Application.Current.Resources["CritBrush"]).Color;
@@ -77,7 +76,7 @@ public sealed class FaultAlert : IDisposable
             VerticalAlignment = VerticalAlignment.Top,
             Child = new TextBlock
             {
-                Text = "⚠  " + Loc.T("WIREVIEW FAULT") + " — " + message,
+                Text = "⚠  " + Loc.T("WIREVIEW FAULT") + ": " + message,
                 Foreground = Brushes.White,
                 FontSize = 22,
                 FontWeight = FontWeights.Bold,
@@ -121,8 +120,7 @@ public sealed class FaultAlert : IDisposable
         return win;
     }
 
-    // ---- Alarm sound ----
-
+    // ===== Alarm sound =====
     private void PlayAlarm(int volumePercent)
     {
         volumePercent = Math.Clamp(volumePercent, 5, 100);

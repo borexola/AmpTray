@@ -30,8 +30,8 @@ New-Item -ItemType Directory -Force $out | Out-Null
 if (-not (Test-Path "$root\Assets\app.ico")) { & "$root\build\make-icon.ps1" }
 
 Write-Host "== Publishing $Version (self-contained win-x64)"
-dotnet publish "$root\AmpTray.csproj" -c $Configuration -r win-x64 --self-contained true `
-    -p:Version=$Version -p:FileVersion=$numericVersion -p:PublishSingleFile=false -o $publish --nologo -v q
+dotnet publish "$root\AmpTray.csproj" -c $Configuration -r win-x64 -p:SelfContained=true `
+    -p:Version=$Version -p:FileVersion=$numericVersion -p:PublishSingleFile=false -o $publish /nologo -v q
 if ($LASTEXITCODE) { throw "dotnet publish failed ($LASTEXITCODE)" }
 Get-ChildItem $publish -Filter *.pdb | Remove-Item -Force
 

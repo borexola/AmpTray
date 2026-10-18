@@ -60,7 +60,7 @@ public partial class WidgetWindow
             return;
         }
 
-        // ---- Top strip: temperatures ----
+        // ===== Top strip: temperatures =====
         GpuName.Text = g.Name.Replace("NVIDIA ", "", StringComparison.OrdinalIgnoreCase);
         GpuTempText.Text = $"{g.TempC:0}°";
         Ref(GpuTempText, TextBlock.ForegroundProperty, g.TempLevel == "OkBrush" ? "TextPrimary" : g.TempLevel);
@@ -75,20 +75,20 @@ public partial class WidgetWindow
             Ref(GpuMemTempText, TextBlock.ForegroundProperty, mt >= g.SlowdownC ? "CritBrush" : mt >= g.SlowdownC - 10 ? "WarnBrush" : "TextPrimary");
         }
         GpuStrip.ToolTip = g.Name + "\n"
-            + Loc.F("GPU {0} °C — the driver throttles at {1} °C and shuts down at {2} °C", g.TempC.ToString("0"), g.SlowdownC.ToString("0"), g.ShutdownC.ToString("0"))
+            + Loc.F("GPU {0} °C. The driver throttles at {1} °C and shuts down at {2} °C", g.TempC.ToString("0"), g.SlowdownC.ToString("0"), g.ShutdownC.ToString("0"))
             + (hasMem ? "\n" + Loc.F("Memory {0} °C", g.MemTempC!.Value.ToString("0")) : "");
 
-        // ---- Panel header ----
+        // ===== Panel header =====
         GpuClockText.Text = (g.PState >= 0 ? $"P{g.PState} · " : "") + $"{g.CoreMhz:0} MHz";
 
-        // ---- Bars ----
+        // ===== Bars =====
         Bar(0, g.LoadPct / 100, $"{g.LoadPct:0} %", "OkBrush");
         string pKey = g.PowerPct >= 100 ? "CritBrush" : g.PowerPct >= 90 ? "WarnBrush" : "OkBrush";
         Bar(1, g.PowerPct / 100, g.PowerLimitW > 0 ? $"{g.PowerW:0} / {g.PowerLimitW:0} W" : $"{g.PowerW:0} W", pKey);
         string vKey = g.MemUsedPct >= 97 ? "CritBrush" : g.MemUsedPct >= 90 ? "WarnBrush" : "OkBrush";
         Bar(2, g.MemUsedPct / 100, $"{GpuSnapshot.FormatBytes(g.MemUsedBytes)} / {GpuSnapshot.FormatBytes(g.MemTotalBytes)}", vKey);
 
-        // ---- Throttling ----
+        // ===== Throttling =====
         GpuThrottle.Children.Clear();
         var reasons = g.ThrottleLabels().ToList();
         foreach (var label in reasons)
@@ -100,17 +100,17 @@ public partial class WidgetWindow
             GpuThrottle.Children.Add(Chip("✓  " + Loc.T("Full clocks"), "OkBrush", "OkBrush"));
         GpuThrottle.Visibility = Vis(GpuThrottle.Children.Count > 0);
 
-        // ---- Expanded details ----
+        // ===== Expanded details =====
         Detail("Core clock", g.CoreMaxMhz > 0 ? $"{g.CoreMhz:0} / {g.CoreMaxMhz:0} MHz" : $"{g.CoreMhz:0} MHz");
         Detail("Memory clock", $"{g.MemMhz:0} MHz");
-        Detail("Fan", g.FanPct is double f ? $"{f:0} %" + (g.FanCount > 1 ? " · " + Loc.F("{0} fans", g.FanCount) : "") : "—");
+        Detail("Fan", g.FanPct is double f ? $"{f:0} %" + (g.FanCount > 1 ? " · " + Loc.F("{0} fans", g.FanCount) : "") : "n/a");
         Detail("Memory temp", hasMem ? $"{g.MemTempC:0} °C" : Loc.T("not reported"));
-        Detail("Encode / decode", g.EncoderPct is double e ? $"{e:0} % / {g.DecoderPct ?? 0:0} %" : "—");
-        Detail("PCIe link", g.PcieGen > 0 ? $"Gen {g.PcieGen} ×{g.PcieWidth}" : "—");
+        Detail("Encode / decode", g.EncoderPct is double e ? $"{e:0} % / {g.DecoderPct ?? 0:0} %" : "n/a");
+        Detail("PCIe link", g.PcieGen > 0 ? $"Gen {g.PcieGen} ×{g.PcieWidth}" : "n/a");
         Detail("Power limit", g.PowerLimitW > 0
             ? $"{g.PowerLimitW:0} W" + (g.PowerLimitMaxW > g.PowerLimitW + 0.5 ? " " + Loc.F("(max {0})", g.PowerLimitMaxW.ToString("0")) : "")
-            : "—");
-        Detail("Driver", string.IsNullOrEmpty(g.DriverVersion) ? "—" : g.DriverVersion);
+            : "n/a");
+        Detail("Driver", string.IsNullOrEmpty(g.DriverVersion) ? "n/a" : g.DriverVersion);
 
         UpdateGpuPowerPath();
         GpuSession.Text = Loc.F("Since {0} · peak {1}° · peak {2} W · {3}", stats.Since.ToString("HH:mm"), stats.PeakTempC.ToString("0"), stats.PeakPowerW.ToString("0"), FormatEnergy(stats.EnergyWh));

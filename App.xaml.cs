@@ -146,10 +146,10 @@ public partial class App : System.Windows.Application, ISettingsHost
         _gpu.Start();
         if (_settings.CheckUpdates) _ = CheckForUpdatesAsync();
 
-        // Optional switches: --settings[:Page] opens the settings window, --test-alert fires the 5 s test alert.
-        var settingsArg = e.Args.FirstOrDefault(a => a.StartsWith("--settings", StringComparison.OrdinalIgnoreCase));
+        // Optional switches: /settings[:Page] opens the settings window, /test-alert fires the 5 s test alert.
+        var settingsArg = e.Args.FirstOrDefault(a => a.StartsWith("/settings", StringComparison.OrdinalIgnoreCase));
         if (settingsArg != null) OpenSettings(settingsArg.Contains(':') ? settingsArg[(settingsArg.IndexOf(':') + 1)..] : null);
-        if (e.Args.Contains("--test-alert", StringComparer.OrdinalIgnoreCase))
+        if (e.Args.Contains("/test-alert", StringComparer.OrdinalIgnoreCase))
             Dispatcher.BeginInvoke(TestAlert, DispatcherPriority.ApplicationIdle);
     }
 
@@ -185,8 +185,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         RefreshMenu();
     }
 
-    // ---- Updates ----
-
+    // ===== Updates =====
     private async System.Threading.Tasks.Task CheckForUpdatesAsync()
     {
         var info = await UpdateChecker.CheckAsync();
@@ -268,8 +267,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         base.OnExit(e);
     }
 
-    // ---- Settings ----
-
+    // ===== Settings =====
     /// <summary>Pushes every setting to the widget, poller, logger, theme and tray, then saves.</summary>
     public void ApplySettings()
     {
@@ -351,8 +349,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         _settingsWindow.Activate();
     }
 
-    // ---- Device events (UI thread) ----
-
+    // ===== Device events (UI thread) =====
     private void OnConnectionChanged(string? port)
     {
         _port = port;
@@ -403,8 +400,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         UpdateTray();
     }
 
-    // ---- Auto shutdown ----
-
+    // ===== Auto shutdown =====
     private void EvaluateShutdown(bool deviceFresh, bool gpuFresh)
     {
         var cfg = _settings.Shutdown;
@@ -444,7 +440,7 @@ public partial class App : System.Windows.Application, ISettingsHost
     private void TriggerShutdown(PendingRule p)
     {
         var cfg = _settings.Shutdown;
-        string reason = $"{ShutdownMonitor.Describe(p.Rule, cfg)} — {p.Condition}";
+        string reason = $"{ShutdownMonitor.Describe(p.Rule, cfg)}: {p.Condition}";
         string folder = _settings.LogFolder;
 
         if (cfg.CountdownSeconds <= 0)
@@ -510,8 +506,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         test.Show();
     }
 
-    // ---- Fault alerts ----
-
+    // ===== Fault alerts =====
     private void HandleFaults(SensorSnapshot s)
     {
         ushort active = s.FaultStatus;
@@ -575,7 +570,7 @@ public partial class App : System.Windows.Application, ISettingsHost
     public void TestAlert()
     {
         _testing = true;
-        StartAlert(Loc.T("TEST") + " — " + SensorSnapshot.Describe(Fault.WireOverCurrent) + " " + Loc.T("(simulated)"), raise: true);
+        StartAlert(Loc.T("TEST") + ": " + SensorSnapshot.Describe(Fault.WireOverCurrent) + " " + Loc.T("(simulated)"), raise: true);
         _testTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _testTimer.Tick -= OnTestTimer;
         _testTimer.Tick += OnTestTimer;
@@ -590,8 +585,7 @@ public partial class App : System.Windows.Application, ISettingsHost
 
     private static string Names(ushort bits) => string.Join(", ", SensorSnapshot.Decode(bits).Select(SensorSnapshot.Describe));
 
-    // ---- Window placement ----
-
+    // ===== Window placement =====
     private void PlaceWindow()
     {
         if (_window == null) return;
@@ -633,8 +627,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         _window?.SetRecording(_settings.LogEnabled, LogStatus);
     }
 
-    // ---- Tray ----
-
+    // ===== Tray =====
     private void BuildTray()
     {
         _menu = new Forms.ContextMenuStrip { ShowImageMargin = false, ShowCheckMargin = true };

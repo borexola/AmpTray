@@ -106,8 +106,7 @@ public partial class SettingsWindow : Window
         _host.ApplySettings();
     }
 
-    // ---- Pages ----
-
+    // ===== Pages =====
     private void BuildPanelsPage()
     {
         Header(Loc.T("Panels"), Loc.T("Choose what the widget shows. The header with total power is always visible."));
@@ -308,8 +307,7 @@ public partial class SettingsWindow : Window
         Note(Loc.T("Read-only. The widget only identifies the device and reads its sensors; it never changes device settings, clears faults or touches firmware. It shares the port with the official WireView app."));
     }
 
-    // ---- Building blocks ----
-
+    // ===== Building blocks =====
     private void Header(string title, string? description)
     {
         Page.Children.Add(new TextBlock
@@ -420,7 +418,7 @@ public partial class SettingsWindow : Window
             Style = Res("Field"),
             Width = width,
             TextAlignment = TextAlignment.Right,
-            ToolTip = $"{min.ToString(CultureInfo.CurrentCulture)} – {max.ToString(CultureInfo.CurrentCulture)}",
+            ToolTip = $"{min.ToString(CultureInfo.CurrentCulture)} to {max.ToString(CultureInfo.CurrentCulture)}",
         };
         double current = value;
         void Commit()

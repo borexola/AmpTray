@@ -35,7 +35,7 @@ public sealed class ShutdownCountdownWindow : Window
         UseLayoutRounding = true;
 
         var stack = new StackPanel { Width = 460 };
-        stack.Children.Add(Text(test ? Loc.T("TEST — this PC will NOT shut down") : "⚠  " + Loc.T("Shutting down this PC"), 20, FontWeights.Bold, "TextPrimary"));
+        stack.Children.Add(Text(test ? Loc.T("TEST: this PC will NOT shut down") : "⚠  " + Loc.T("Shutting down this PC"), 20, FontWeights.Bold, "TextPrimary"));
         stack.Children.Add(Text(reason, 13, FontWeights.Normal, "TextSecondary", new Thickness(0, 6, 0, 0)));
         _count = Text("", 64, FontWeights.SemiBold, "CritBrush", new Thickness(0, 10, 0, 6));
         _count.FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI");

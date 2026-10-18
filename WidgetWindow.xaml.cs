@@ -108,8 +108,7 @@ public partial class WidgetWindow : Window
         }
     }
 
-    // ---- Window behaviour ----
-
+    // ===== Window behaviour =====
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
@@ -152,8 +151,7 @@ public partial class WidgetWindow : Window
         Native.SetWindowLong(hwnd, Native.GWL_EXSTYLE, style);
     }
 
-    // ---- Configuration ----
-
+    // ===== Configuration =====
     /// <summary>Assigns every fixed text in the current language and re-renders the live values.</summary>
     public void ApplyLanguage()
     {
@@ -239,8 +237,7 @@ public partial class WidgetWindow : Window
         if (_lastGpu != null && _gpuStats != null) ShowGpu(_lastGpu, _gpuStats);
     }
 
-    // ---- Auto shutdown ----
-
+    // ===== Auto shutdown =====
     public void SetShutdownArmed(bool armed, string? rules)
     {
         ArmedBadge.Visibility = Vis(armed);
@@ -257,16 +254,15 @@ public partial class WidgetWindow : Window
         }
         var r = next.Remaining;
         string when = r <= TimeSpan.Zero ? Loc.T("now") : Loc.F("in {0}", $"{(int)r.TotalMinutes}:{r.Seconds:00}");
-        ShutdownText.Text = Loc.F("PC shuts down {0} — {1}", when, next.Condition) + (more > 0 ? " " + Loc.F("(+{0} more)", more) : "");
+        ShutdownText.Text = Loc.F("PC shuts down {0}: {1}", when, next.Condition) + (more > 0 ? " " + Loc.F("(+{0} more)", more) : "");
         ShutdownBanner.Visibility = Visibility.Visible;
     }
 
-    // ---- Updates ----
-
+    // ===== Updates =====
     public void ShowUpdate(UpdateInfo info)
     {
         _update = info;
-        UpdateText.Text = Loc.F("AmpTray {0} is available", info.Tag) + (info.Name != info.Tag ? $" — {info.Name}" : "");
+        UpdateText.Text = Loc.F("AmpTray {0} is available", info.Tag) + (info.Name != info.Tag ? $": {info.Name}" : "");
         UpdateBanner.Visibility = Visibility.Visible;
     }
 
@@ -276,8 +272,7 @@ public partial class WidgetWindow : Window
         UpdateBanner.Visibility = Visibility.Collapsed;
     }
 
-    // ---- Alerts ----
-
+    // ===== Alerts =====
     public void ShowAlert(string message, bool flash)
     {
         AlertText.Text = "⚠  " + message;
@@ -302,14 +297,13 @@ public partial class WidgetWindow : Window
         FlashLayer.Opacity = 0;
     }
 
-    // ---- Data ----
-
+    // ===== Data =====
     public void ShowDisconnected(string? reason)
     {
         _last = null;
         Ref(StatusDot, Shape.FillProperty, "IdleBrush");
         StatusText.Text = reason ?? Loc.T("Searching for device…");
-        TotalPower.Text = "— W";
+        TotalPower.Text = "n/a";
         Ref(TotalPower, TextBlock.ForegroundProperty, "TextMuted");
         TotalCurrent.Text = "";
         ScaleText.Text = "";
@@ -319,13 +313,13 @@ public partial class WidgetWindow : Window
         {
             Animate(p.Fill, 0);
             Ref(p.FillBar, Border.BackgroundProperty, "IdleBrush");
-            p.Amps.Text = "—";
+            p.Amps.Text = "n/a";
             Ref(p.Amps, TextBlock.ForegroundProperty, "TextMuted");
             p.Volts.Text = p.Watts.Text = p.Peak.Text = "";
         }
         foreach (var t in _temps)
         {
-            t.Value.Text = "—";
+            t.Value.Text = "n/a";
             Ref(t.Value, TextBlock.ForegroundProperty, "TextMuted");
             t.Max.Text = "";
         }
@@ -334,7 +328,7 @@ public partial class WidgetWindow : Window
         foreach (var (dot, state) in _faultCells)
         {
             Ref(dot, Shape.FillProperty, "IdleBrush");
-            state.Text = "—";
+            state.Text = "n/a";
         }
         UpdateGpuPowerPath();
     }
@@ -366,8 +360,8 @@ public partial class WidgetWindow : Window
         // Full bar = what one wire may carry under the cable rating.
         double limit = WireLimitA(s);
         ScaleText.Text = s.CableRatingW > 0
-            ? Loc.F("0 – {0} A per wire ({1} W cable)", limit.ToString("0.0#"), s.CableRatingW)
-            : Loc.F("0 – {0} A per wire (pin rating)", limit.ToString("0.0"));
+            ? Loc.F("0 to {0} A per wire ({1} W cable)", limit.ToString("0.0#"), s.CableRatingW)
+            : Loc.F("0 to {0} A per wire (pin rating)", limit.ToString("0.0"));
         double mean = s.PinCurrent.Average();
 
         for (int i = 0; i < _pins.Length; i++)
@@ -399,7 +393,7 @@ public partial class WidgetWindow : Window
             var t = _temps[i];
             if (!SensorSnapshot.IsTempPresent(temps[i]))
             {
-                t.Value.Text = "—";
+                t.Value.Text = "n/a";
                 Ref(t.Value, TextBlock.ForegroundProperty, "TextMuted");
                 t.Max.Text = Loc.T("not connected");
                 continue;
@@ -502,8 +496,7 @@ public partial class WidgetWindow : Window
 
     private static string FormatEnergy(double wh) => wh >= 1000 ? $"{wh / 1000:0.00} kWh" : $"{wh:0.0} Wh";
 
-    // ---- Layout construction ----
-
+    // ===== Layout construction =====
     private sealed class PinRow
     {
         public required Grid Row;
@@ -647,8 +640,7 @@ public partial class WidgetWindow : Window
         }
     }
 
-    // ---- Helpers ----
-
+    // ===== Helpers =====
     private static Visibility Vis(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 
     private static void Ref(FrameworkElement e, DependencyProperty p, string key) => e.SetResourceReference(p, key);
