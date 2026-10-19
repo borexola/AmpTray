@@ -51,6 +51,17 @@ public sealed class GpuPoller : IDisposable
 
     public void Start() => _thread.Start();
 
+    private readonly AutoResetEvent _wake = new(false);
+
+    /// <summary>Re-open the GPU right away (resume from sleep) instead of waiting for the retry delay.</summary>
+    public void Reconnect()
+    {
+        Available = false;
+        _wake.Set();
+    }
+
+    private void Pause(int ms) => WaitHandle.WaitAny(new[] { _cts.Token.WaitHandle, _wake }, ms);
+
     private void Run()
     {
         try { Loop(); }
@@ -75,7 +86,7 @@ public sealed class GpuPoller : IDisposable
             {
                 if (!TryOpen(_deviceIndex))
                 {
-                    ct.WaitHandle.WaitOne(RetryDelayMs);
+                    Pause(RetryDelayMs);
                     continue;
                 }
                 boundIndex = _deviceIndex;
@@ -89,12 +100,12 @@ public sealed class GpuPoller : IDisposable
             {
                 Available = false;
                 try { Sample?.Invoke(null); } catch { }
-                ct.WaitHandle.WaitOne(RetryDelayMs);
+                Pause(RetryDelayMs);
                 continue;
             }
 
             try { Sample?.Invoke(s); } catch { }
-            ct.WaitHandle.WaitOne(_intervalMs);
+            Pause(_intervalMs);
         }
     }
 

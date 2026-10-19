@@ -36,9 +36,17 @@ public sealed class WireViewReader : IDisposable
     private bool _resync;
 
     // VID_0483/PID_5740 is ST's generic virtual COM port ID, shared by many hobby boards. Ports that
-    // failed identification are skipped until the set of ports on the machine changes.
-    private readonly HashSet<string> _rejected = new(StringComparer.OrdinalIgnoreCase);
+    // failed identification are skipped for a while (or until the set of ports changes), then tried
+    // again: after sleep or a USB hiccup the WireView itself can fail one handshake.
+    private static readonly TimeSpan RejectFor = TimeSpan.FromSeconds(20);
+    private readonly Dictionary<string, DateTime> _rejected = new(StringComparer.OrdinalIgnoreCase);
     private string _portSetKey = "";
+
+    /// <summary>Retry every port on the next scan (called on resume from sleep).</summary>
+    public void ForgetRejections()
+    {
+        lock (_rejected) _rejected.Clear();
+    }
 
     public string? PortName { get; private set; }
 
@@ -51,16 +59,19 @@ public sealed class WireViewReader : IDisposable
         PortName = null;
         foreach (var port in FindCandidatePorts())
         {
-            if (_rejected.Contains(port)) continue;
+            lock (_rejected)
+            {
+                if (_rejected.TryGetValue(port, out var until) && DateTime.UtcNow < until) continue;
+            }
             try
             {
                 if (Identify(port))
                 {
                     PortName = port;
-                    _rejected.Clear();
+                    ForgetRejections();
                     return true;
                 }
-                _rejected.Add(port);
+                lock (_rejected) _rejected[port] = DateTime.UtcNow + RejectFor;
             }
             catch
             {
@@ -258,7 +269,7 @@ public sealed class WireViewReader : IDisposable
         if (key != _portSetKey)
         {
             _portSetKey = key;
-            _rejected.Clear(); // something was plugged or unplugged: re-check everything
+            ForgetRejections(); // something was plugged or unplugged: re-check everything
         }
         var presentSet = new HashSet<string>(present, StringComparer.OrdinalIgnoreCase);
 

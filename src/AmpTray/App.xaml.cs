@@ -185,7 +185,14 @@ public partial class App : System.Windows.Application, ISettingsHost
 
     private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
     {
-        if (e.Mode == PowerModes.Resume) Dispatcher.BeginInvoke(() => ResetShutdownTimers("resumed from sleep"));
+        if (e.Mode != PowerModes.Resume) return;
+        Dispatcher.BeginInvoke(() =>
+        {
+            ResetShutdownTimers("resumed from sleep");
+            // USB serial ports and the GPU driver come back a little after the OS does: look for them again now.
+            _poller?.Reconnect();
+            _gpu?.Reconnect();
+        });
     }
 
     private void OnTimeChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(() => ResetShutdownTimers("system clock changed"));

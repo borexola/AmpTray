@@ -11,8 +11,24 @@ public sealed class DevicePoller : IDisposable
 
     private readonly WireViewReader _reader = new();
     private readonly CancellationTokenSource _cts = new();
+    private readonly AutoResetEvent _wake = new(false);
     private readonly Thread _thread;
     private volatile int _intervalMs;
+    private volatile bool _rescan;
+
+    /// <summary>Drop the current port and look for the device again right away (resume from sleep, USB reset).</summary>
+    public void Reconnect()
+    {
+        _reader.ForgetRejections();
+        _rescan = true;
+        _wake.Set();
+    }
+
+    /// <summary>Waits for the interval, cancellation or a Reconnect() request.</summary>
+    private void Pause(int ms)
+    {
+        WaitHandle.WaitAny(new[] { _cts.Token.WaitHandle, _wake }, ms);
+    }
 
     /// <summary>Raised on the polling thread with a fresh sample.</summary>
     public event Action<SensorSnapshot>? Sample;
@@ -43,15 +59,16 @@ public sealed class DevicePoller : IDisposable
         {
             while (!ct.IsCancellationRequested)
             {
+                _rescan = false;
                 if (!_reader.TryConnect())
                 {
-                    ct.WaitHandle.WaitOne(RescanDelayMs);
+                    Pause(RescanDelayMs);
                     continue;
                 }
                 Raise(() => ConnectionChanged?.Invoke(_reader.PortName));
 
                 int failures = 0;
-                while (!ct.IsCancellationRequested && failures < FailuresBeforeRescan)
+                while (!ct.IsCancellationRequested && failures < FailuresBeforeRescan && !_rescan)
                 {
                     SensorSnapshot? s = null;
                     try { s = _reader.ReadSensors(); }
@@ -66,7 +83,7 @@ public sealed class DevicePoller : IDisposable
                     {
                         failures++;
                     }
-                    ct.WaitHandle.WaitOne(_intervalMs);
+                    Pause(_intervalMs);
                 }
                 Raise(() => ConnectionChanged?.Invoke(null));
             }
@@ -87,7 +104,9 @@ public sealed class DevicePoller : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
-        if (_thread.IsAlive && !_thread.Join(5000)) return; // still inside a serial call; leave the CTS for it
+        _wake.Set();
+        if (_thread.IsAlive && !_thread.Join(5000)) return; // still inside a serial call; leave the handles for it
         _cts.Dispose();
+        _wake.Dispose();
     }
 }

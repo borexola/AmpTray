@@ -123,8 +123,12 @@ public partial class WidgetWindow
             + Loc.F("GPU {0} °C. The driver throttles at {1} °C and shuts down at {2} °C", g.TempC.ToString("0"), g.SlowdownC.ToString("0"), g.ShutdownC.ToString("0"))
             + (hasMem ? "\n" + Loc.F("Memory {0} °C", g.MemTempC!.Value.ToString("0")) : "");
 
-        // ===== Panel header =====
-        GpuClockText.Text = (g.PState >= 0 ? $"P{g.PState} · " : "") + $"{g.CoreMhz:0} MHz";
+        // ===== Panel header: state, clock and, when throttling, the reason (keeps the panel height constant) =====
+        var reasons = g.ThrottleLabels().ToList();
+        bool anyThermal = reasons.Any(GpuSnapshot.IsThermalReason);
+        GpuClockText.Text = (g.PState >= 0 ? $"P{g.PState} · " : "") + $"{g.CoreMhz:0} MHz"
+                            + (reasons.Count > 0 ? " · " + string.Join(", ", reasons) : "");
+        Ref(GpuClockText, TextBlock.ForegroundProperty, reasons.Count == 0 ? "TextMuted" : anyThermal ? "CritBrush" : "WarnBrush");
 
         // ===== Bars =====
         Bar(0, g.LoadPct / 100, $"{g.LoadPct:0} %", "OkBrush");
@@ -133,17 +137,19 @@ public partial class WidgetWindow
         string vKey = g.MemUsedPct >= 97 ? "CritBrush" : g.MemUsedPct >= 90 ? "WarnBrush" : "OkBrush";
         Bar(2, g.MemUsedPct / 100, $"{GpuSnapshot.FormatBytes(g.MemUsedBytes)} / {GpuSnapshot.FormatBytes(g.MemTotalBytes)}", vKey);
 
-        // ===== Throttling =====
+        // ===== Throttling chips: expanded view only, and always exactly one row so nothing jumps =====
         GpuThrottle.Children.Clear();
-        var reasons = g.ThrottleLabels().ToList();
-        foreach (var label in reasons)
+        if (_expanded)
         {
-            bool thermal = GpuSnapshot.IsThermalReason(label);
-            GpuThrottle.Children.Add(Chip(label, thermal ? "CritBrush" : "WarnBrush", thermal ? "CritBrush" : "WarnBrush", filled: thermal));
+            foreach (var label in reasons)
+            {
+                bool thermal = GpuSnapshot.IsThermalReason(label);
+                GpuThrottle.Children.Add(Chip(label, thermal ? "CritBrush" : "WarnBrush", thermal ? "CritBrush" : "WarnBrush", filled: thermal));
+            }
+            if (reasons.Count == 0)
+                GpuThrottle.Children.Add(Chip("✓  " + Loc.T("Full clocks"), "OkBrush", "OkBrush"));
         }
-        if (reasons.Count == 0 && _expanded)
-            GpuThrottle.Children.Add(Chip("✓  " + Loc.T("Full clocks"), "OkBrush", "OkBrush"));
-        GpuThrottle.Visibility = Vis(GpuThrottle.Children.Count > 0);
+        GpuThrottle.Visibility = Vis(_expanded);
 
         // ===== Expanded details =====
         Detail("Core clock", g.CoreMaxMhz > 0 ? $"{g.CoreMhz:0} / {g.CoreMaxMhz:0} MHz" : $"{g.CoreMhz:0} MHz");

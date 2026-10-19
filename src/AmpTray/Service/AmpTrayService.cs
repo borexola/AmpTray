@@ -13,7 +13,15 @@ public sealed class AmpTrayService : ServiceBase
         ServiceName = ServiceManager.Name;
         CanStop = true;
         CanShutdown = true;
+        CanHandlePowerEvent = true;
         AutoLog = false;
+    }
+
+    protected override bool OnPowerEvent(PowerBroadcastStatus status)
+    {
+        if (status == PowerBroadcastStatus.ResumeSuspend || status == PowerBroadcastStatus.ResumeAutomatic)
+            _monitor?.OnResume();
+        return true;
     }
 
     protected override void OnStart(string[] args)

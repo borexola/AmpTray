@@ -58,6 +58,19 @@ public sealed class BackgroundMonitor : IDisposable
         _reload.Change(5000, 5000);
     }
 
+    /// <summary>Resume from sleep or hibernation: reconnect the device and GPU, forget rule timers.</summary>
+    public void OnResume()
+    {
+        lock (_gate)
+        {
+            _rules.Reset();
+            _pendingSummary = "";
+        }
+        _device?.Reconnect();
+        _gpu?.Reconnect();
+        ServiceSettings.Log("Resumed from sleep: reconnecting");
+    }
+
     private void OnSample(SensorSnapshot s)
     {
         lock (_gate)
