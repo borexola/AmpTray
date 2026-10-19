@@ -6,6 +6,7 @@
         <!-- Defaults only; Theme.Apply replaces these at startup and on every theme change. -->
         <SolidColorBrush x:Key="PanelBrush" Color="#FC14161B" />
         <SolidColorBrush x:Key="PanelSolidBrush" Color="#14161B" />
+        <SolidColorBrush x:Key="PanelFadeBrush" Color="#14161B" />
         <SolidColorBrush x:Key="PanelBorderBrush" Color="#26FFFFFF" />
         <SolidColorBrush x:Key="DividerBrush" Color="#14FFFFFF" />
         <SolidColorBrush x:Key="TrackBrush" Color="#1FFFFFFF" />

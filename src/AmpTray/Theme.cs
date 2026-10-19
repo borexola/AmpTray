@@ -52,22 +52,37 @@ public static class Theme
             : preset.Clone();
     }
 
+    /// <summary>
+    /// Alpha of the widget's panel background (0..1). Only the background fades with the opacity
+    /// setting; text, bars and banners stay fully drawn so they remain readable.
+    /// </summary>
+    public static double PanelAlpha { get; private set; } = 1;
+
+    private static ThemeColors? _applied;
+
     /// <summary>Pushes a theme into the application resources; DynamicResource users update live.</summary>
     public static void Apply(ThemeColors t)
     {
+        _applied = t;
         var bg = Parse(t.Background, Colors.Black);
         var fg = Parse(t.Text, Colors.White);
         var res = Application.Current.Resources;
 
+        // As the panel background thins out, the desktop takes its place behind the text, so the
+        // secondary and muted shades (which are blends towards the background) move towards the
+        // text colour to keep their contrast; the halo drawn by the widget does the rest.
+        double thin = 1 - Math.Clamp(PanelAlpha / 0.85, 0, 1);
+
         Set(res, "PanelBrush", WithAlpha(bg, 0xFC));
         Set(res, "PanelSolidBrush", bg);
+        Set(res, "PanelFadeBrush", WithAlpha(bg, (byte)Math.Round(Math.Clamp(PanelAlpha, 0, 1) * 255)));
         Set(res, "PanelBorderBrush", WithAlpha(fg, 0x26));
         Set(res, "DividerBrush", WithAlpha(fg, 0x14));
-        Set(res, "TrackBrush", WithAlpha(fg, 0x1F));
+        Set(res, "TrackBrush", WithAlpha(fg, (byte)(0x1F + 0x30 * thin)));
         Set(res, "HoverBrush", WithAlpha(fg, 0x14));
         Set(res, "TextPrimary", fg);
-        Set(res, "TextSecondary", Lerp(bg, fg, 0.62));
-        Set(res, "TextMuted", Lerp(bg, fg, 0.38));
+        Set(res, "TextSecondary", Lerp(bg, fg, 0.62 + 0.33 * thin));
+        Set(res, "TextMuted", Lerp(bg, fg, 0.38 + 0.47 * thin));
         Set(res, "IdleBrush", Lerp(bg, fg, 0.38));
         Set(res, "OkBrush", Parse(t.Accent, Colors.LimeGreen));
         Set(res, "WarnBrush", Parse(t.Warning, Colors.Orange));
@@ -75,9 +90,25 @@ public static class Theme
         Set(res, "GraphBrush", Parse(t.Graph, Colors.DeepSkyBlue));
     }
 
+    /// <summary>Re-tints the panel background with a new alpha; the current theme colour is kept.</summary>
+    public static void SetPanelAlpha(double alpha)
+    {
+        alpha = Math.Clamp(alpha, 0, 1);
+        if (alpha == PanelAlpha && _applied != null) return;
+        PanelAlpha = alpha;
+        Apply(_applied ?? new ThemeColors());
+    }
+
     public static bool IsDark(ThemeColors t)
     {
         var c = Parse(t.Background, Colors.Black);
+        return 0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B < 128;
+    }
+
+    /// <summary>True when the theme currently applied to the application has a dark background.</summary>
+    public static bool IsDarkApplied()
+    {
+        var c = Application.Current.Resources["PanelSolidBrush"] is SolidColorBrush b ? b.Color : Colors.Black;
         return 0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B < 128;
     }
 

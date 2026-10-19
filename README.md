@@ -33,7 +33,7 @@ Both are self-contained (no .NET install needed), Windows 10/11 x64. The install
 ## Use
 
 - Drag to move. Double-click to switch between compact and expanded; the widget always starts compact. Compact shows only the panels you pick in Settings, expanded shows everything. Hover for the expand and settings buttons.
-- Opacity goes down to 5 %; by default the widget fades back to solid while the mouse is over it.
+- Opacity goes down to 5 %. Only the panel background fades: text, bars and gauges stay solid and get an outline once the background is thin, so the readings stay legible over anything behind the widget. By default the widget turns solid while the mouse is over it.
 - The GPU temperature and the FPS counter in the top bar can each be turned off (Settings → Panels → Top bar). With several monitors you can pick which screen's game the FPS counter follows; by default it follows the app in the foreground.
 - Right-click the widget or tray icon for the menu. Left-click the tray icon to show or hide the widget.
 - Settings pages: Panels, Theme, Alerts, Logging, Auto shutdown, Window (always on top, click-through, opacity, refresh rate, start with Windows, language, update check).

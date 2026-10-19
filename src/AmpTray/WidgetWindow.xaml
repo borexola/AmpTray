@@ -5,7 +5,7 @@
         Title="AmpTray"
         WindowStyle="None"
         AllowsTransparency="False"
-        Background="{DynamicResource PanelSolidBrush}"
+        Background="Transparent"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         SizeToContent="WidthAndHeight"
@@ -16,18 +16,19 @@
         Foreground="{DynamicResource TextPrimary}">
 
     <!-- All visible text is assigned in code (ApplyLanguage) so it can be translated.
-         Plain opaque window: corners are rounded by DWM, opacity is a per-window alpha. No layered
-         rendering and no bitmap effects, which keeps CPU and GPU use near zero between updates. -->
+         Plain (non-layered) window whose frame is extended over the whole client area, so DWM composites
+         WPF's own per-pixel alpha: the panel background fades with the opacity setting while text, bars
+         and banners stay solid. No layered rendering, which keeps CPU and GPU use near zero between updates. -->
     <Grid>
         <Border x:Name="Panel"
                 Width="292"
                 CornerRadius="12"
-                Background="{DynamicResource PanelSolidBrush}"
+                Background="{DynamicResource PanelFadeBrush}"
                 BorderBrush="{DynamicResource PanelBorderBrush}"
                 BorderThickness="1">
 
             <Grid>
-                <StackPanel Margin="14,12,14,12">
+                <StackPanel x:Name="Body" Margin="14,12,14,12">
                     <!-- GPU temperatures (NVIDIA); shown whenever an NVIDIA GPU is present -->
                     <Grid x:Name="GpuStrip" Visibility="Collapsed" Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>

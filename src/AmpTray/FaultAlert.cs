@@ -183,13 +183,25 @@ internal static class Native
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int L, T, R, B; }
 
-    public const int WS_EX_LAYERED = 0x80000;
-    public const uint LWA_ALPHA = 0x2;
     public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
     public const int DWMWCP_ROUND = 2;
 
-    [DllImport("user32.dll")] public static extern bool SetLayeredWindowAttributes(IntPtr hWnd, uint colorKey, byte alpha, uint flags);
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MARGINS { public int Left, Right, Top, Bottom; }
+
     [DllImport("dwmapi.dll")] public static extern int DwmSetWindowAttribute(IntPtr hWnd, int attribute, ref int value, int size);
+    [DllImport("dwmapi.dll")] private static extern int DwmExtendFrameIntoClientArea(IntPtr hWnd, ref MARGINS margins);
+
+    /// <summary>
+    /// Extends the DWM frame over the entire client area. Together with a transparent composition
+    /// target this makes a plain WPF window show the desktop through its translucent pixels, without
+    /// the bitmap round trip of a layered (AllowsTransparency) window.
+    /// </summary>
+    public static void ExtendFrameIntoClientArea(IntPtr hWnd)
+    {
+        var m = new MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
+        try { DwmExtendFrameIntoClientArea(hWnd, ref m); } catch { }
+    }
 
     [DllImport("kernel32.dll")] private static extern bool SetProcessWorkingSetSize(IntPtr process, IntPtr min, IntPtr max);
     [DllImport("kernel32.dll")] private static extern IntPtr GetCurrentProcess();

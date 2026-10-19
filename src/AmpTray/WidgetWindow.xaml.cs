@@ -124,8 +124,13 @@ public partial class WidgetWindow : Window
     {
         base.OnSourceInitialized(e);
         ApplyExStyle();
-        var hwnd = new WindowInteropHelper(this).Handle;
-        Native.RoundCorners(hwnd);
+        // Per-pixel transparency without a layered window: WPF draws into a surface with alpha and
+        // DWM shows the desktop through it wherever the panel background is translucent.
+        if (PresentationSource.FromVisual(this) is HwndSource source)
+        {
+            source.CompositionTarget.BackgroundColor = Colors.Transparent;
+            Native.ExtendFrameIntoClientArea(source.Handle);
+        }
         ApplyAlpha(_baseOpacity);
     }
 
@@ -154,12 +159,67 @@ public partial class WidgetWindow : Window
         ApplyAlpha(opaqueOnHover && IsMouseOver ? 1 : value);
     }
 
-    /// <summary>Per-window alpha composited by DWM: free, unlike WPF's Opacity on a layered window.</summary>
+    private double _appliedAlpha = -1;
+    private bool _appliedDark;
+    private readonly System.Collections.Generic.List<Rectangle> _halo = new();
+
+    /// <summary>
+    /// Fades only the panel background. Text, bars, gauges and banners keep their full colour, and
+    /// once the background gets thin a one-pixel outline in the background colour is drawn behind
+    /// everything so it stays legible over whatever is on the desktop behind the widget.
+    /// </summary>
     private void ApplyAlpha(double opacity)
     {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero) return;
-        Native.SetLayeredWindowAttributes(hwnd, 0, (byte)Math.Round(Math.Clamp(opacity, 0.05, 1) * 255), Native.LWA_ALPHA);
+        opacity = Math.Clamp(opacity, 0, 1);
+        Theme.SetPanelAlpha(opacity);
+        bool dark = Theme.IsDarkApplied();
+        if (opacity == _appliedAlpha && dark == _appliedDark) return;
+        _appliedAlpha = opacity;
+        _appliedDark = dark;
+
+        // ClearType needs an opaque background behind the glyphs; on the see-through surface it
+        // would leave colour fringes, so switch to grayscale antialiasing while the panel is translucent.
+        TextOptions.SetTextRenderingMode(this, opacity < 1 ? TextRenderingMode.Grayscale : TextRenderingMode.Auto);
+        // Below this the tinted background no longer carries the contrast on its own.
+        SetHalo(opacity < 0.6, dark ? Colors.Black : Colors.White);
+    }
+
+    /// <summary>
+    /// Four silhouettes of the content, offset by one pixel in each direction and filled with a
+    /// single colour, sit behind it and form a crisp outline. They are only present while the panel
+    /// is translucent, so a solid widget renders exactly as before.
+    /// </summary>
+    private void SetHalo(bool on, Color color)
+    {
+        var host = (Grid)Body.Parent;
+        if (!on)
+        {
+            foreach (var r in _halo) host.Children.Remove(r);
+            _halo.Clear();
+            return;
+        }
+        if (_halo.Count == 0)
+        {
+            foreach (var (dx, dy) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
+            {
+                var r = new Rectangle
+                {
+                    IsHitTestVisible = false,
+                    Margin = Body.Margin,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    OpacityMask = new VisualBrush(Body) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top },
+                    RenderTransform = new TranslateTransform(dx, dy),
+                };
+                r.SetBinding(WidthProperty, new System.Windows.Data.Binding(nameof(ActualWidth)) { Source = Body });
+                r.SetBinding(HeightProperty, new System.Windows.Data.Binding(nameof(ActualHeight)) { Source = Body });
+                host.Children.Insert(0, r);
+                _halo.Add(r);
+            }
+        }
+        var fill = new SolidColorBrush(color);
+        fill.Freeze();
+        foreach (var r in _halo) r.Fill = fill;
     }
 
     /// <summary>Raises the widget above other windows once, without pinning it there.</summary>
@@ -175,7 +235,7 @@ public partial class WidgetWindow : Window
     {
         var hwnd = new WindowInteropHelper(this).Handle;
         if (hwnd == IntPtr.Zero) return;
-        int style = Native.GetWindowLong(hwnd, Native.GWL_EXSTYLE) | Native.WS_EX_TOOLWINDOW | Native.WS_EX_LAYERED;
+        int style = Native.GetWindowLong(hwnd, Native.GWL_EXSTYLE) | Native.WS_EX_TOOLWINDOW;
         style = _clickThrough ? style | Native.WS_EX_TRANSPARENT : style & ~Native.WS_EX_TRANSPARENT;
         style = _topmost ? style | Native.WS_EX_NOACTIVATE : style & ~Native.WS_EX_NOACTIVATE;
         Native.SetWindowLong(hwnd, Native.GWL_EXSTYLE, style);
