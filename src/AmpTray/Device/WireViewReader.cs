@@ -26,7 +26,7 @@ public sealed class WireViewReader : IDisposable
     private const string WelcomeMessage = "Thermal Grizzly WireView Pro II";
     private const string SharedMutexName = @"Global\Access_USB_Sensors";
     private const string UsbVidPid = "VID_0483&PID_5740";
-    private const int SensorStructSize = 100;
+    internal const int SensorStructSize = 100;
     private const int IoTimeoutMs = 1000;
 
     private static readonly byte[] CmdReadSensorValues = { 0x04 };
@@ -119,7 +119,7 @@ public sealed class WireViewReader : IDisposable
     ///   84 uint TotalPower, 88 uint TotalCurrent, 92 ushort AvgVoltage, 94 byte HpwrCap, 95 pad
     ///   96 ushort FaultStatus, 98 ushort FaultLog
     /// </summary>
-    private static SensorSnapshot Parse(byte[] b)
+    internal static SensorSnapshot Parse(byte[] b)
     {
         ReadOnlySpan<byte> s = b;
         var volts = new double[SensorSnapshot.PinCount];

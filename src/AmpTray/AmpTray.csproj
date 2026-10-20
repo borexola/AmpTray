@@ -34,7 +34,7 @@
 
   <PropertyGroup>
     <!-- Overridden by build.ps1 / CI with -p:Version=... -->
-    <Version>0.0.13</Version>
+    <Version>0.0.14</Version>
     <Product>AmpTray for WireView Pro II</Product>
     <AssemblyTitle>AmpTray</AssemblyTitle>
     <Authors>borexola</Authors>
@@ -52,6 +52,11 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\Strings\*.json" />
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AmpTray.Tests" />
   </ItemGroup>
 
 </Project>

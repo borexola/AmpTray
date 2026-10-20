@@ -245,7 +245,7 @@
             <StackPanel x:Name="Nav" Grid.Row="1" Margin="10,4,6,12" />
 
             <!-- Page -->
-            <ScrollViewer Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="6,0,8,12">
+            <ScrollViewer x:Name="PageScroll" Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="6,0,8,12">
                 <StackPanel x:Name="Page" Margin="12,4,16,8" />
             </ScrollViewer>
         </Grid>

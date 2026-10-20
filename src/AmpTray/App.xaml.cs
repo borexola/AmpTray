@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
+using AmpTray.Logging;
 using Microsoft.Win32;
 using AmpTray.Device;
 using AmpTray.Gpu;
@@ -83,7 +84,14 @@ public partial class App : System.Windows.Application, ISettingsHost
             catch (ObjectDisposedException) { }
         }) { IsBackground = true, Name = "Show signal" }.Start();
 
-        AppDomain.CurrentDomain.UnhandledException += (_, ex) => LogError(ex.ExceptionObject as Exception);
+        // A crash on any thread: log it, record it, and let a fresh copy take over (see CrashRecovery).
+        AppDomain.CurrentDomain.UnhandledException += (_, ex) => CrashRecovery.Handle(ex.ExceptionObject as Exception, "background", ReleaseSingleInstance);
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, ex) => { ex.SetObserved(); LogError(ex.Exception, "task"); };
+        CrashRecovery.RegisterWithWindows();
+
+        bool recovered = e.Args.Contains(CrashRecovery.RecoveredSwitch, StringComparer.OrdinalIgnoreCase);
+        AppLog.Info("app", recovered ? "recovered" : "started", recovered ? "AmpTray restarted after a crash" : "AmpTray started",
+            ("version", UpdateChecker.Display(UpdateChecker.Current)), ("args", string.Join(" ", e.Args)));
         try
         {
             StartUp(e);
@@ -91,14 +99,40 @@ public partial class App : System.Windows.Application, ISettingsHost
         catch (Exception ex)
         {
             // Startup must either fully succeed or visibly fail; a half-started tray process would be a mystery.
-            LogError(ex);
-            MessageBox.Show(Loc.T("AmpTray could not start:") + $"\n\n{ex.Message}\n\n" + Loc.F("Details are in {0}", Path.Combine(Settings.AppDataFolder, "errors.log")),
+            AppLog.Error("app", "start-failed", "AmpTray could not start", ex);
+            MessageBox.Show(Loc.T("AmpTray could not start:") + $"\n\n{ex.Message}\n\n" + Loc.F("Details are in {0}", AppLog.WidgetLogPath),
                 "AmpTray", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
         }
-        // From here on, a bug in one update must not take the whole widget down; log it and carry on.
-        DispatcherUnhandledException += (_, ex) => { LogError(ex.Exception); ex.Handled = true; };
+        if (recovered && _settings.Notify)
+            _tray?.ShowBalloonTip(6000, "AmpTray", Loc.T("The widget restarted after a crash. Details are in Settings → Logs."), Forms.ToolTipIcon.Info);
+        // A bug in one update must not take the whole widget down: log it and carry on. Should the UI
+        // thread keep failing, that is a crash loop in disguise: restart instead of flooding the log.
+        DispatcherUnhandledException += (_, ex) =>
+        {
+            ex.Handled = true;
+            _uiFailures.Enqueue(DateTime.UtcNow);
+            while (_uiFailures.Count > 0 && DateTime.UtcNow - _uiFailures.Peek() > TimeSpan.FromMinutes(1)) _uiFailures.Dequeue();
+            if (_uiFailures.Count < 5)
+            {
+                LogError(ex.Exception, "ui");
+                return;
+            }
+            if (CrashRecovery.Handle(ex.Exception, "ui-loop", ReleaseSingleInstance)) Environment.Exit(1);
+        };
+    }
+
+    private readonly System.Collections.Generic.Queue<DateTime> _uiFailures = new();
+
+    /// <summary>Lets a replacement copy start while this one is still going down.</summary>
+    public void ReleaseSingleInstance()
+    {
+        try { _singleInstance?.ReleaseMutex(); } catch (ApplicationException) { }
+        try { _singleInstance?.Dispose(); } catch (ObjectDisposedException) { }
+        try { _showSignal?.Dispose(); } catch (ObjectDisposedException) { }
+        _singleInstance = null;
+        _showSignal = null;
     }
 
     private void StartUp(StartupEventArgs e)
@@ -188,6 +222,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (e.Mode != PowerModes.Resume) return;
         Dispatcher.BeginInvoke(() =>
         {
+            AppLog.Info("power", "resume", "Resumed from sleep: reconnecting to the device and GPU");
             ResetShutdownTimers("resumed from sleep");
             // USB serial ports and the GPU driver come back a little after the OS does: look for them again now.
             _poller?.Reconnect();
@@ -208,7 +243,11 @@ public partial class App : System.Windows.Application, ISettingsHost
         _window?.ShowShutdownPending(null, 0);
         _countdown?.Abort();
         _countdown = null;
-        if (hadSomething) PcShutdown.Log(_settings.LogFolder, $"Shutdown timers reset: {why}");
+        if (hadSomething)
+        {
+            PcShutdown.Log(_settings.LogFolder, $"Shutdown timers reset: {why}");
+            AppLog.Info("shutdown", "reset", "Shutdown timers reset: " + why);
+        }
         RefreshMenu();
     }
 
@@ -320,12 +359,21 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (info == null) return;
         await Dispatcher.InvokeAsync(() =>
         {
+            AppLog.Info("update", "available", "A newer release is available: " + info.Tag, ("url", info.Url));
             _update = info;
             _window?.ShowUpdate(info);
             RefreshMenu();
             if (_window?.IsVisible != true && _settings.Notify)
                 _tray?.ShowBalloonTip(8000, "AmpTray", Loc.F("AmpTray {0} is available", info.Tag), Forms.ToolTipIcon.Info);
         });
+    }
+
+    /// <summary>A release found by the manual check in Settings: same banner and tray item as the startup check.</summary>
+    public void ShowUpdate(UpdateInfo info)
+    {
+        _update = info;
+        _window?.ShowUpdate(info);
+        RefreshMenu();
     }
 
     private void OpenUpdatePage()
@@ -361,22 +409,15 @@ public partial class App : System.Windows.Application, ISettingsHost
         }
     }
 
-    private static void LogError(Exception? ex)
+    private static void LogError(Exception? ex, string where = "app")
     {
         if (ex == null) return;
-        try
-        {
-            Directory.CreateDirectory(Settings.AppDataFolder);
-            File.AppendAllText(Path.Combine(Settings.AppDataFolder, "errors.log"), $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {ex}{Environment.NewLine}{Environment.NewLine}");
-        }
-        catch
-        {
-            // Nothing more we can do.
-        }
+        AppLog.Error(where == "ui" || where == "task" ? "app" : where, "error", ex.Message, ex, ("where", where));
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        AppLog.Info("app", "exit", "AmpTray exiting", ("code", e.ApplicationExitCode));
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         SystemEvents.TimeChanged -= OnTimeChanged;
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
@@ -503,10 +544,12 @@ public partial class App : System.Windows.Application, ISettingsHost
     private void OnConnectionChanged(string? port)
     {
         _port = port;
+        if (port != null) AppLog.Info("device", "connected", "WireView connected on " + port, ("port", port));
+        else AppLog.Warn("device", "disconnected", "WireView disconnected");
         if (port != null && !_mutexWarned && _poller?.MutexProblem is string problem)
         {
             _mutexWarned = true;
-            LogError(new InvalidOperationException("Shared USB-sensor mutex unavailable; polling without it. " + problem));
+            AppLog.Warn("device", "mutex", "Shared USB-sensor mutex unavailable; polling without it", ("problem", problem));
         }
         if (port == null)
         {
@@ -566,17 +609,22 @@ public partial class App : System.Windows.Application, ISettingsHost
         // Tell the user once when a rule starts counting down (matters when the widget is hidden).
         foreach (var p in _pending)
         {
+            if (!_notifiedPending.Contains(p.Rule))
+                AppLog.Warn("shutdown", "pending", "Shutdown rule counting down: " + p.Condition, ("rule", p.Rule), ("remaining", p.Remaining.ToString(@"m\:ss")));
             if (_notifiedPending.Add(p.Rule) && _tray != null)
                 _tray.ShowBalloonTip(8000, Loc.T("Auto shutdown pending"),
                     p.Condition + ". " + Loc.F("The PC shuts down in {0} unless it clears.", ShutdownMonitor.Minutes(p.Remaining.TotalMinutes)) + " " +
                     Loc.T("Cancel from the widget or tray menu."), Forms.ToolTipIcon.Warning);
         }
+        foreach (var r in _notifiedPending.Where(r => _pending.All(p => p.Rule != r)).ToList())
+            AppLog.Info("shutdown", "cleared", "Shutdown rule no longer counting down", ("rule", r));
         _notifiedPending.RemoveWhere(r => _pending.All(p => p.Rule != r));
 
         // Condition cleared during the on-screen countdown: stand down.
         if (_countdown != null && _countdownRule is ShutdownRule cr && _pending.All(p => p.Rule != cr))
         {
             PcShutdown.Log(_settings.LogFolder, "Countdown aborted: condition cleared");
+            AppLog.Info("shutdown", "countdown-aborted", "Countdown aborted: condition cleared");
             _countdown.Abort();
             _countdown = null;
         }
@@ -587,7 +635,11 @@ public partial class App : System.Windows.Application, ISettingsHost
             // before sign-in); the widget keeps showing the banner and offers Cancel.
             if (ServiceManager.IsRunningCached())
             {
-                if (!_deferredToService) PcShutdown.Log(_settings.LogFolder, "Rule triggered in the widget; the background service issues the shutdown");
+                if (!_deferredToService)
+                {
+                    PcShutdown.Log(_settings.LogFolder, "Rule triggered in the widget; the background service issues the shutdown");
+                    AppLog.Warn("shutdown", "deferred", "Rule triggered; the background service issues the shutdown", ("condition", result.Triggered.Condition));
+                }
                 _deferredToService = true;
             }
             else
@@ -616,6 +668,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         }
 
         PcShutdown.Log(folder, "Countdown started: " + reason);
+        AppLog.Warn("shutdown", "countdown", "Shutdown countdown started: " + reason, ("seconds", cfg.CountdownSeconds));
         _countdownRule = p.Rule;
         _countdown = new ShutdownCountdownWindow(reason, cfg.CountdownSeconds, test: false);
         _countdown.Elapsed += () => { _countdown = null; Execute(reason); };
@@ -624,6 +677,7 @@ public partial class App : System.Windows.Application, ISettingsHost
             _countdown = null;
             _shutdown.Suppress(new[] { p.Rule });
             PcShutdown.Log(folder, "Cancelled by user: " + reason);
+            AppLog.Info("shutdown", "cancelled", "Shutdown cancelled by user: " + reason);
             RefreshMenu();
         };
         _countdown.Show();
@@ -631,6 +685,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         void Execute(string why)
         {
             _shutdownIssued = true;
+            AppLog.Error("shutdown", "executed", "Shutting down the PC: " + why);
             bool started = PcShutdown.Execute(why, folder, message => Dispatcher.BeginInvoke(() => OnShutdownFailed(message)));
             if (!started) OnShutdownFailed("shutdown.exe could not be started.");
         }
@@ -639,6 +694,7 @@ public partial class App : System.Windows.Application, ISettingsHost
     /// <summary>Windows refused (e.g. a restart is already scheduled): warn, and try again in a minute if the rule still holds.</summary>
     private void OnShutdownFailed(string message)
     {
+        AppLog.Error("shutdown", "failed", "Shutdown command failed: " + message);
         _shutdownIssued = false;
         _shutdownRetryNotBefore = DateTime.Now.AddSeconds(60);
         _tray?.ShowBalloonTip(10000, Loc.T("Auto shutdown FAILED"), message + " " + Loc.T("Retrying in 60 s if the condition persists."), Forms.ToolTipIcon.Error);
@@ -649,6 +705,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (_pending.Count == 0 && _countdown == null) return;
         _shutdown.Suppress(_pending.Select(p => p.Rule));
         PcShutdown.Log(_settings.LogFolder, "Pending shutdown cancelled by user: " + string.Join("; ", _pending.Select(p => p.Condition)));
+        AppLog.Info("shutdown", "cancelled", "Pending shutdown cancelled by user", ("conditions", string.Join("; ", _pending.Select(p => p.Condition))));
         _pending = Array.Empty<PendingRule>();
         _window?.ShowShutdownPending(null, 0);
         _countdown?.Close(); // raises Cancelled, which suppresses the triggering rule too
@@ -684,6 +741,9 @@ public partial class App : System.Windows.Application, ISettingsHost
         // A fault that clears and comes back should alert again.
         _ackMask &= active;
 
+        if (fresh != 0) AppLog.Warn("fault", "raised", "Fault reported: " + Names(fresh), ("status", $"0x{active:X4}"));
+        else if (active == 0 && _lastLoggedFaults != 0) AppLog.Info("fault", "cleared", "All faults cleared");
+        _lastLoggedFaults = active;
         if (fresh != 0 && _settings.Notify && _tray != null)
             _tray.ShowBalloonTip(5000, Loc.T("WireView fault"), Names(fresh), Forms.ToolTipIcon.Warning);
 
@@ -729,14 +789,18 @@ public partial class App : System.Windows.Application, ISettingsHost
         RefreshMenu();
     }
 
+    private ushort _lastLoggedFaults;
+
     private void Acknowledge()
     {
         _ackMask = _last?.FaultStatus ?? 0;
+        if (_alerting) AppLog.Info("fault", "acknowledged", "Fault alert acknowledged");
         StopAlert();
     }
 
     public void TestAlert()
     {
+        AppLog.Info("fault", "test", "Test alert started");
         _testing = true;
         StartAlert(Loc.T("TEST") + ": " + SensorSnapshot.Describe(Fault.WireOverCurrent) + " " + Loc.T("(simulated)"), raise: true);
         _testTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };

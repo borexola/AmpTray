@@ -36,7 +36,16 @@ public static class Program
 
         var app = new App();
         app.InitializeComponent();
-        return app.Run();
+        try
+        {
+            return app.Run();
+        }
+        catch (Exception ex)
+        {
+            // Nothing above this frame: log it, hand over to a fresh copy and get out of the way.
+            Logging.CrashRecovery.Handle(ex, "run", app.ReleaseSingleInstance);
+            return 1;
+        }
     }
 
     private static bool Has(string[] args, string sw) => args.Any(a => a.Equals(sw, StringComparison.OrdinalIgnoreCase));

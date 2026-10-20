@@ -9,6 +9,9 @@ namespace AmpTray;
 
 public sealed record UpdateInfo(Version Version, string Tag, string Url, string Name);
 
+/// <summary>Outcome of one update check: the newer release if there is one, the latest version seen, or a failure.</summary>
+public sealed record UpdateCheck(bool Succeeded, Version? Latest, UpdateInfo? Update);
+
 /// <summary>
 /// Asks GitHub for the latest (non-prerelease) release of this project and says whether it is newer
 /// than the running build. One anonymous GET to api.github.com per call; nothing is sent about the PC.
@@ -21,7 +24,9 @@ public static class UpdateChecker
 
     public static Version Current => Normalize(Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0));
 
-    public static async Task<UpdateInfo?> CheckAsync()
+    public static async Task<UpdateInfo?> CheckAsync() => (await CheckDetailedAsync().ConfigureAwait(false)).Update;
+
+    public static async Task<UpdateCheck> CheckDetailedAsync()
     {
         try
         {
@@ -32,23 +37,27 @@ public static class UpdateChecker
             request.Headers.Accept.ParseAdd("application/vnd.github+json");
 
             using var response = await Http.SendAsync(request).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return null;
+            if (!response.IsSuccessStatusCode) return new UpdateCheck(false, null, null);
 
             using var doc = JsonDocument.Parse(await response.Content.ReadAsStreamAsync().ConfigureAwait(false));
             var root = doc.RootElement;
             string tag = root.TryGetProperty("tag_name", out var t) ? t.GetString() ?? "" : "";
             string url = root.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "";
             string name = root.TryGetProperty("name", out var n) ? n.GetString() ?? tag : tag;
-            if (tag.Length == 0 || url.Length == 0 || !TryParseVersion(tag, out var version)) return null;
+            if (tag.Length == 0 || url.Length == 0 || !TryParseVersion(tag, out var version)) return new UpdateCheck(false, null, null);
 
-            return version > Current ? new UpdateInfo(version, tag, url, string.IsNullOrWhiteSpace(name) ? tag : name) : null;
+            var update = version > Current ? new UpdateInfo(version, tag, url, string.IsNullOrWhiteSpace(name) ? tag : name) : null;
+            return new UpdateCheck(true, version, update);
         }
         catch
         {
             // Offline, rate-limited or odd JSON: no update banner this time.
-            return null;
+            return new UpdateCheck(false, null, null);
         }
     }
+
+    /// <summary>"0.0.14" rather than "0.0.14.0" for display.</summary>
+    public static string Display(Version v) => v.Revision > 0 ? v.ToString(4) : v.ToString(3);
 
     /// <summary>"v1.2.3", "1.2", "v1.2.3-beta" → 1.2.3.0 (prerelease suffix ignored).</summary>
     internal static bool TryParseVersion(string tag, out Version version)

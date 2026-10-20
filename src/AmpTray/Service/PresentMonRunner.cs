@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -17,27 +16,12 @@ namespace AmpTray.Service;
 public sealed class PresentMonRunner : IDisposable
 {
     private const string SessionName = "AmpTrayPresentMon";
-    private static readonly string[] Ignored = { "dwm", "csrss", "AmpTray" };
-
-    private sealed class Chain
-    {
-        public readonly Queue<double> Times = new(); // CSV time column, seconds
-        public double Latest;
-    }
-
-    private sealed class Proc
-    {
-        public readonly Dictionary<ulong, Chain> Chains = new();
-        public string Name = "";
-        public long LastSeen;
-    }
 
     private readonly object _gate = new();
-    private readonly Dictionary<int, Proc> _procs = new();
+    private readonly PresentTally _tally = new();
     private Process? _proc;
     private Thread? _reader;
     private Timer? _publish;
-    private long _rows;
     private long _lastDiag = Stopwatch.GetTimestamp();
 
     public bool Active { get; private set; }
@@ -95,52 +79,19 @@ public sealed class PresentMonRunner : IDisposable
         try
         {
             var stdout = _proc!.StandardOutput;
-            int iPid = -1, iChain = -1, iTime = -1, iApp = -1;
+            PresentTally.Columns? columns = null;
             string? line;
             while ((line = stdout.ReadLine()) != null)
             {
                 if (line.Length == 0) continue;
-                if (iPid < 0)
+                if (columns == null)
                 {
                     // Header row: locate the columns by name so either metrics layout works.
-                    var cols = line.Split(',');
-                    iApp = Array.IndexOf(cols, "Application");
-                    iPid = Array.IndexOf(cols, "ProcessID");
-                    iChain = Array.IndexOf(cols, "SwapChainAddress");
-                    iTime = Array.IndexOf(cols, "TimeInSeconds");
-                    if (iTime < 0) iTime = Array.IndexOf(cols, "CPUStartTime");
-                    if (iPid < 0 || iChain < 0 || iTime < 0)
-                    {
-                        ServiceSettings.Log("PresentMon: unexpected CSV header: " + line);
-                        iPid = -1;
-                    }
+                    columns = PresentTally.ParseHeader(line);
+                    if (columns == null) ServiceSettings.Log("PresentMon: unexpected CSV header: " + line);
                     continue;
                 }
-
-                var f = line.Split(',');
-                if (f.Length <= Math.Max(iTime, Math.Max(iPid, iChain))) continue;
-                if (!int.TryParse(f[iPid], NumberStyles.Integer, CultureInfo.InvariantCulture, out int pid)) continue;
-                if (!double.TryParse(f[iTime], NumberStyles.Float, CultureInfo.InvariantCulture, out double t)) continue;
-                string chainText = f[iChain].Trim();
-                ulong chain = chainText.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-                    ? ulong.Parse(chainText[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture)
-                    : (ulong.TryParse(chainText, out var c) ? c : 0UL);
-
-                lock (_gate)
-                {
-                    if (!_procs.TryGetValue(pid, out var p))
-                    {
-                        _procs[pid] = p = new Proc();
-                        string app = iApp >= 0 && iApp < f.Length ? f[iApp] : "";
-                        p.Name = app.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? app[..^4] : app;
-                    }
-                    if (!p.Chains.TryGetValue(chain, out var ch)) p.Chains[chain] = ch = new Chain();
-                    ch.Times.Enqueue(t);
-                    if (t > ch.Latest) ch.Latest = t;
-                    while (ch.Times.Count > 0 && ch.Times.Peek() < ch.Latest - 1.0) ch.Times.Dequeue();
-                    p.LastSeen = Stopwatch.GetTimestamp();
-                    _rows++;
-                }
+                lock (_gate) _tally.AddRow(line, columns, Stopwatch.GetTimestamp());
             }
             ServiceSettings.Log("PresentMon output ended" + (_proc.HasExited ? $" (exit code {_proc.ExitCode})" : ""));
         }
@@ -155,28 +106,21 @@ public sealed class PresentMonRunner : IDisposable
     {
         long now = Stopwatch.GetTimestamp();
         long second = Stopwatch.Frequency;
-        var entries = new List<FpsEntry>();
+        List<FpsEntry> entries;
+        long rows;
         lock (_gate)
         {
-            foreach (var (pid, p) in _procs.ToList())
-            {
-                if (now - p.LastSeen > 5 * second) { _procs.Remove(pid); continue; }
-                // Data more than ~2 s old (by wall clock) means the game stopped presenting: report nothing.
-                if (now - p.LastSeen > 2 * second) continue;
-                int best = p.Chains.Values.Max(ch => ch.Times.Count);
-                if (best < 2) continue;
-                if (Ignored.Contains(p.Name, StringComparer.OrdinalIgnoreCase)) continue;
-                entries.Add(new FpsEntry(pid, p.Name, best));
-            }
+            entries = _tally.Entries(now, second);
+            rows = _tally.Rows;
         }
         new FpsSnapshot { Timestamp = DateTime.Now, Processes = entries.OrderByDescending(e => e.Fps).Take(8).ToList() }.TrySave();
 
         if (now - _lastDiag > 60 * second)
         {
             _lastDiag = now;
-            ServiceSettings.Log($"FPS (PresentMon): rows={_rows} processes={entries.Count}" +
+            ServiceSettings.Log($"FPS (PresentMon): rows={rows} processes={entries.Count}" +
                 (entries.Count > 0 ? " top=" + string.Join(", ", entries.OrderByDescending(e => e.Fps).Take(3).Select(e => $"{e.Name}:{e.Fps:0}")) : ""));
-            _rows = 0;
+            lock (_gate) _tally.ResetRows();
         }
     }
 

@@ -60,7 +60,12 @@ public sealed class Settings
     public static string AppDataFolder => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AmpTray");
 
-    private static readonly string FilePath = Path.Combine(AppDataFolder, "settings.json");
+    /// <summary>Where settings live; tests point this at a scratch folder.</summary>
+    internal static string FilePath { get; set; } = Path.Combine(AppDataFolder, "settings.json");
+
+    /// <summary>Settings file of the early "WireView Widget" builds, carried over on first run.</summary>
+    internal static string LegacyFilePath { get; set; } =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WireViewWidget", "settings.json");
 
     public static Settings Load()
     {
@@ -70,17 +75,7 @@ public sealed class Settings
             if (File.Exists(FilePath))
             {
                 var s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? new Settings();
-                // A hand-edited file can null out nested objects; never let that crash startup.
-                s.CustomColors ??= new ThemeColors();
-                s.Shutdown ??= new ShutdownSettings();
-                if (string.IsNullOrWhiteSpace(s.LogFolder)) s.LogFolder = DefaultLogFolder;
-                s.PollMs = Math.Clamp(s.PollMs, 250, 5000);
-                s.GraphWindowSeconds = Math.Clamp(s.GraphWindowSeconds, 30, (int)PowerHistory.MaxAge.TotalSeconds);
-                s.Opacity = double.IsFinite(s.Opacity) ? Math.Clamp(s.Opacity, MinOpacity, 1.0) : 1.0;
-                s.AlarmVolume = Math.Clamp(s.AlarmVolume, 5, 100);
-                s.GpuIndex = Math.Max(0, s.GpuIndex);
-                s.LogIntervalSeconds = Math.Max(0, s.LogIntervalSeconds);
-                return s;
+                return Normalize(s);
             }
         }
         catch
@@ -90,15 +85,31 @@ public sealed class Settings
         return new Settings();
     }
 
+    /// <summary>Brings a loaded (possibly hand-edited) file back into the ranges the app can run with.</summary>
+    internal static Settings Normalize(Settings s)
+    {
+        // A hand-edited file can null out nested objects; never let that crash startup.
+        s.CustomColors ??= new ThemeColors();
+        s.Shutdown ??= new ShutdownSettings();
+        if (string.IsNullOrWhiteSpace(s.LogFolder)) s.LogFolder = DefaultLogFolder;
+        s.PollMs = Math.Clamp(s.PollMs, 250, 5000);
+        s.GraphWindowSeconds = Math.Clamp(s.GraphWindowSeconds, 30, (int)PowerHistory.MaxAge.TotalSeconds);
+        s.Opacity = double.IsFinite(s.Opacity) ? Math.Clamp(s.Opacity, MinOpacity, 1.0) : 1.0;
+        s.AlarmVolume = Math.Clamp(s.AlarmVolume, 5, 100);
+        s.GpuIndex = Math.Max(0, s.GpuIndex);
+        s.LogIntervalSeconds = Math.Max(0, s.LogIntervalSeconds);
+        return s;
+    }
+
     /// <summary>Early builds were called "WireView Widget"; carry their settings over once.</summary>
     private static void MigrateFromOldName()
     {
         if (File.Exists(FilePath)) return;
-        string old = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WireViewWidget", "settings.json");
+        string old = LegacyFilePath;
         if (!File.Exists(old)) return;
         try
         {
-            Directory.CreateDirectory(AppDataFolder);
+            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
             File.Copy(old, FilePath);
         }
         catch

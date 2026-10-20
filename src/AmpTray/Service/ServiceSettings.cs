@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 
 namespace AmpTray.Service;
@@ -18,7 +19,10 @@ public sealed class ServiceSettings
     public string LogFolder { get; set; } = Path.Combine(Folder, "Logs");
     public ShutdownSettings Shutdown { get; set; } = new();
 
-    public static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "AmpTray");
+    /// <summary>Tests point the machine-wide folder at a scratch directory.</summary>
+    internal static string? FolderOverride { get; set; }
+
+    public static string Folder => FolderOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "AmpTray");
     public static string FilePath => Path.Combine(Folder, "service.json");
     public static string LogFile => Path.Combine(Folder, "service.log");
 
@@ -69,16 +73,19 @@ public sealed class ServiceSettings
         }
     }
 
+    private static Logging.EventLog? _log;
+    private static readonly string[] Trouble = { "fail", "error", "could not", "unexpected", "stopped", "disconnected", "shutting down" };
+
+    /// <summary>Service events go to service.log in ProgramData, one JSON line each; the widget's Logs page reads them too.</summary>
     public static void Log(string line)
     {
-        try
-        {
-            Directory.CreateDirectory(Folder);
-            File.AppendAllText(LogFile, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {line}{Environment.NewLine}");
-        }
-        catch
-        {
-            // Nothing more to do.
-        }
+        var level = Trouble.Any(w => line.Contains(w, StringComparison.OrdinalIgnoreCase)) ? Logging.LogLevel.Warning : Logging.LogLevel.Info;
+        Log(level, "log", line);
+    }
+
+    public static void Log(Logging.LogLevel level, string @event, string message, params (string Key, object? Value)[] data)
+    {
+        _log ??= new Logging.EventLog(LogFile);
+        _log.Write(level, "service", @event, message, data);
     }
 }

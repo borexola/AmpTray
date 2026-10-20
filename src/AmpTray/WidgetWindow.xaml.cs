@@ -236,9 +236,12 @@ public partial class WidgetWindow : Window
         var hwnd = new WindowInteropHelper(this).Handle;
         if (hwnd == IntPtr.Zero) return;
         int style = Native.GetWindowLong(hwnd, Native.GWL_EXSTYLE) | Native.WS_EX_TOOLWINDOW;
-        style = _clickThrough ? style | Native.WS_EX_TRANSPARENT : style & ~Native.WS_EX_TRANSPARENT;
+        // Mouse input only passes through a top-level window when it is layered as well as transparent.
+        style = _clickThrough ? style | Native.WS_EX_TRANSPARENT | Native.WS_EX_LAYERED : style & ~(Native.WS_EX_TRANSPARENT | Native.WS_EX_LAYERED);
         style = _topmost ? style | Native.WS_EX_NOACTIVATE : style & ~Native.WS_EX_NOACTIVATE;
         Native.SetWindowLong(hwnd, Native.GWL_EXSTYLE, style);
+        // A layered window is only shown once its attributes have been set; full alpha keeps the look unchanged.
+        if (_clickThrough) Native.SetLayeredWindowAttributes(hwnd, 0, 255, Native.LWA_ALPHA);
     }
 
     // ===== Configuration =====

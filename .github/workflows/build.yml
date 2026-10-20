@@ -15,7 +15,33 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
 jobs:
+  # Every push, pull request and tag runs the unit tests first. The packaging job below
+  # depends on this one, so a release can only be published when the tests pass.
+  test:
+    name: Unit tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run tests
+        shell: pwsh
+        run: dotnet test tests/AmpTray.Tests/AmpTray.Tests.csproj -c Release --nologo --logger "trx;LogFileName=AmpTray.Tests.trx" --results-directory artifacts/test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: artifacts/test-results/*.trx
+          if-no-files-found: error
+
   build:
+    name: Build and release
+    needs: test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,11 +73,21 @@ jobs:
           path: artifacts/out/*
           if-no-files-found: error
 
+      # The release text is the annotated tag's message: short and written by hand.
+      - name: Release notes from the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          git fetch --force origin "refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"
+          $notes = git tag -l --format='%(contents)' '${{ github.ref_name }}'
+          if (-not $notes) { $notes = "AmpTray ${{ steps.ver.outputs.version }}" }
+          Set-Content -Path artifacts/notes.md -Value $notes -Encoding utf8
+
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: AmpTray ${{ steps.ver.outputs.version }}
           files: artifacts/out/*
-          generate_release_notes: true
+          body_path: artifacts/notes.md
           prerelease: ${{ contains(steps.ver.outputs.version, '-') }}

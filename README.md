@@ -36,7 +36,7 @@ Both are self-contained (no .NET install needed), Windows 10/11 x64. The install
 - Opacity goes down to 5 %. Only the panel background fades: text, bars and gauges stay solid and get an outline once the background is thin, so the readings stay legible over anything behind the widget. By default the widget turns solid while the mouse is over it.
 - The GPU temperature and the FPS counter in the top bar can each be turned off (Settings → Panels → Top bar). With several monitors you can pick which screen's game the FPS counter follows; by default it follows the app in the foreground.
 - Right-click the widget or tray icon for the menu. Left-click the tray icon to show or hide the widget.
-- Settings pages: Panels, Theme, Alerts, Logging, Auto shutdown, Window (always on top, click-through, opacity, refresh rate, start with Windows, language, update check).
+- Settings pages: Panels, Theme, Alerts, Logging, Auto shutdown, Window (always on top, click-through, opacity, refresh rate, start with Windows, language, update check) and About (version you are running, manual update check, links).
 - Switches: `/settings`, `/settings:Theme`, `/test-alert`.
 
 ## Starting with Windows and running before sign-in
@@ -57,7 +57,7 @@ Arm it in Settings or the tray menu. It runs `shutdown /s /f /t 0` when a rule h
 
 ## Build
 
-Needs the .NET 10 SDK. `dotnet build` at the root builds `AmpTray.slnx`; `.\build\build.ps1` publishes, zips and builds the MSI into `artifacts\out` (installs WiX 5 locally if needed). Sources live in `src\AmpTray`, the installer and scripts in `build`, screenshots in `docs`. Pushing a tag `vX.Y.Z` makes the Build workflow publish both files as a GitHub release.
+Needs the .NET 10 SDK. `dotnet build` at the root builds `AmpTray.slnx`; `.\build\build.ps1` publishes, zips and builds the MSI into `artifacts\out` (installs WiX 5 locally if needed). Sources live in `src\AmpTray`, the installer and scripts in `build`, screenshots in `docs`. Unit tests live in `tests\AmpTray.Tests` and run with `dotnet test`; the Build workflow runs them before packaging. Pushing a tag `vX.Y.Z` makes the workflow publish both files as a GitHub release.
 
 <details>
 <summary>More screenshots</summary>
@@ -70,6 +70,10 @@ Needs the .NET 10 SDK. `dotnet build` at the root builds `AmpTray.slnx`; `.\buil
   <img src="docs/widget-wires.png" alt="Per-wire readings" width="400" />
 </p>
 </details>
+
+## Logs and crash recovery
+
+Settings → Logs shows what the widget and the background service have been doing: device connections, faults, shutdown rules, updates and errors, filterable by level, source and text. The list follows new events while you are scrolled to the end. The underlying files (`amptray.log` next to the settings, `service.log` in ProgramData) hold one JSON object per line and never grow past 2 MB; the oldest lines are dropped. If the widget crashes it writes the exception to the log and starts a fresh copy of itself; after three crashes within ten minutes it stays closed instead of looping.
 
 ## Legal
 
