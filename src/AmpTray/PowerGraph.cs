@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace AmpTray;
@@ -24,10 +25,21 @@ public sealed class PowerGraph : FrameworkElement
     /// <summary>Points further apart than this are treated as a disconnect and not joined.</summary>
     public double GapSeconds { get; set; } = 5;
 
+    // X position of the mouse while it is over the plot; the readout follows it.
+    private double? _hoverX;
+
+    public PowerGraph()
+    {
+        MouseMove += (_, e) => { _hoverX = e.GetPosition(this).X; InvalidateVisual(); };
+        MouseLeave += (_, _) => { _hoverX = null; InvalidateVisual(); };
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         double w = ActualWidth, h = ActualHeight;
         if (w < 10 || h < 10) return;
+        // An invisible fill makes the whole plot hit-testable, so hovering works over empty areas too.
+        dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, w, h));
 
         var line = Res("GraphBrush");
         var grid = Res("DividerBrush");
@@ -114,6 +126,73 @@ public sealed class PowerGraph : FrameworkElement
             var gpu = MakeText(Loc.T("GPU board"), muted, 9.5, dpi);
             dc.DrawText(gpu, new Point(lx + 16, ly - gpu.Height / 2));
         }
+
+        if (_hoverX is double hx && hx >= px && hx <= w)
+            DrawReadout(dc, hx, now, pts, gpuPts, X, Y, px, pw, ph, line, lineColor, dpi);
+    }
+
+    /// <summary>
+    /// Cursor line at the hovered time with the cable and GPU board values nearest to it, and the
+    /// clock time of that sample. The box flips to the left of the cursor near the right edge.
+    /// </summary>
+    private void DrawReadout(DrawingContext dc, double hx, DateTime now, List<(DateTime T, double W)> pts, List<(DateTime T, double W)> gpuPts,
+        Func<DateTime, double> X, Func<double, double> Y, double px, double pw, double ph, Brush line, Color lineColor, double dpi)
+    {
+        DateTime t = now.AddSeconds(-(1 - (hx - px) / pw) * WindowSeconds);
+        var cable = Nearest(pts, t);
+        var gpu = Nearest(gpuPts, t);
+        if (cable == null && gpu == null) return;
+
+        var at = cable?.T ?? gpu!.Value.T;
+        double cx = Math.Round(X(at)) + 0.5;
+        var cursorPen = new Pen(new SolidColorBrush(Theme.WithAlpha(((SolidColorBrush)Res("TextPrimary")).Color, 0x70)), 1);
+        dc.DrawLine(cursorPen, new Point(cx, 0), new Point(cx, ph));
+
+        var text = Res("TextPrimary");
+        var muted = Res("TextMuted");
+        var lines = new List<FormattedText>();
+        if (cable is { } c)
+        {
+            lines.Add(MakeText($"{Loc.T("cable")}  {c.W:0} W", text, 10.5, dpi));
+            dc.DrawEllipse(line, null, new Point(X(c.T), Y(c.W)), 3, 3);
+        }
+        if (gpu is { } g)
+        {
+            lines.Add(MakeText($"{Loc.T("GPU board")}  {g.W:0} W", text, 10.5, dpi));
+            dc.DrawEllipse(new SolidColorBrush(Theme.WithAlpha(lineColor, 0xA0)), null, new Point(X(g.T), Y(g.W)), 2.4, 2.4);
+        }
+        lines.Add(MakeText(at.ToString("T", CultureInfo.CurrentCulture), muted, 9.5, dpi));
+
+        const double pad = 6;
+        double bw = lines.Max(l => l.Width) + pad * 2;
+        double bh = lines.Sum(l => l.Height) + pad * 2 - 2;
+        double bx = cx + 8;
+        if (bx + bw > px + pw) bx = cx - 8 - bw;
+        double by = Math.Clamp(Y(cable?.W ?? gpu!.Value.W) - bh / 2, 0, Math.Max(0, ph - bh));
+
+        var boxFill = new SolidColorBrush(Theme.WithAlpha(((SolidColorBrush)Res("PanelSolidBrush")).Color, 0xE6));
+        dc.DrawRoundedRectangle(boxFill, new Pen(Res("PanelBorderBrush"), 1), new Rect(bx, by, bw, bh), 4, 4);
+        double ty = by + pad - 1;
+        foreach (var l in lines)
+        {
+            dc.DrawText(l, new Point(bx + pad, ty));
+            ty += l.Height;
+        }
+    }
+
+    /// <summary>The sample closest to <paramref name="t"/>, or null when the nearest one is across a gap.</summary>
+    private (DateTime T, double W)? Nearest(List<(DateTime T, double W)> pts, DateTime t)
+    {
+        if (pts.Count == 0) return null;
+        int lo = 0, hi = pts.Count - 1;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) / 2;
+            if (pts[mid].T < t) lo = mid + 1; else hi = mid;
+        }
+        var best = pts[lo];
+        if (lo > 0 && (t - pts[lo - 1].T).Duration() < (best.T - t).Duration()) best = pts[lo - 1];
+        return (best.T - t).Duration().TotalSeconds <= GapSeconds ? best : null;
     }
 
     /// <summary>Line and filled-area geometry for one series, breaking the line at gaps (disconnects).</summary>
