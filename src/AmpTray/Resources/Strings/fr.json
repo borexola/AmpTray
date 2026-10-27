@@ -307,5 +307,7 @@
   "No events match the filter.": "Aucun événement ne correspond au filtre.",
   "{0} of {1} events": "{0} événements sur {1}",
   "Showing the newest {0}": "Affichage des {0} plus récents",
-  "The widget restarted after a crash. Details are in Settings → Logs.": "Le widget a redémarré après un plantage. Les détails sont dans Paramètres → Journaux."
+  "The widget restarted after a crash. Details are in Settings → Logs.": "Le widget a redémarré après un plantage. Les détails sont dans Paramètres → Journaux.",
+  "Widget hidden by a fullscreen game": "Widget masqué par un jeu en plein écran",
+  "Games in exclusive fullscreen cover every other window. Set the game's display mode to borderless (or windowed fullscreen) to keep the widget on top.": "Les jeux en plein écran exclusif recouvrent toutes les autres fenêtres. Réglez le mode d'affichage du jeu sur sans bordure (ou plein écran fenêtré) pour garder le widget au premier plan."
 }

@@ -109,6 +109,7 @@ public sealed class FaultAlert : IDisposable
         // Position in device pixels (same coordinate space as Screen.Bounds) so every monitor is covered exactly.
         Native.SetWindowPos(new WindowInteropHelper(win).Handle, Native.HWND_TOPMOST,
             bounds.Left, bounds.Top, bounds.Width, bounds.Height, Native.SWP_NOACTIVATE);
+        TopmostKeeper.Register(win); // stays above a borderless game; released when the overlay closes
 
         var pulse = new DoubleAnimation(1.0, 0.15, TimeSpan.FromMilliseconds(450))
         {

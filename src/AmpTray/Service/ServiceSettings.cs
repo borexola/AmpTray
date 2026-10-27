@@ -26,6 +26,31 @@ public sealed class ServiceSettings
     public static string FilePath => Path.Combine(Folder, "service.json");
     public static string LogFile => Path.Combine(Folder, "service.log");
 
+    /// <summary>The widget touches this file when the user cancels a shutdown; the service watches its timestamp.</summary>
+    public static string CancelRequestPath => Path.Combine(Folder, "cancel-shutdown.flag");
+
+    /// <summary>Asks the service to stand down: suppress its active rules and abort a shutdown it scheduled.</summary>
+    public static bool RequestCancel()
+    {
+        try
+        {
+            if (!Directory.Exists(Folder)) return false;
+            File.WriteAllText(CancelRequestPath, DateTime.UtcNow.ToString("O"));
+            File.SetLastWriteTimeUtc(CancelRequestPath, DateTime.UtcNow);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static DateTime CancelRequestStamp()
+    {
+        try { return File.Exists(CancelRequestPath) ? File.GetLastWriteTimeUtc(CancelRequestPath) : DateTime.MinValue; }
+        catch { return DateTime.MinValue; }
+    }
+
     public static ServiceSettings FromUser(Settings s) => new()
     {
         PollMs = s.PollMs,

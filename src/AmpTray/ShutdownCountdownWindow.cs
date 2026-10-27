@@ -77,7 +77,7 @@ public sealed class ShutdownCountdownWindow : Window
         Content = panel;
 
         _timer.Tick += (_, _) => Tick();
-        Loaded += (_, _) => { _lastTick = DateTime.Now; Tick(); _timer.Start(); Activate(); };
+        Loaded += (_, _) => { _lastTick = DateTime.Now; Tick(); _timer.Start(); Activate(); TopmostKeeper.Register(this); };
         Closed += (_, _) => { _timer.Stop(); if (!_done) { _done = true; Cancelled?.Invoke(); } };
     }
 

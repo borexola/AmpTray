@@ -30,6 +30,7 @@ public sealed class BackgroundMonitor : IDisposable
     private bool _issued;
     private DateTime _retryNotBefore = DateTime.MinValue;
     private string _pendingSummary = "";
+    private DateTime _cancelStamp;
 
     public BackgroundMonitor()
     {
@@ -39,6 +40,7 @@ public sealed class BackgroundMonitor : IDisposable
     public void Start()
     {
         _cfgStamp = Stamp();
+        _cancelStamp = ServiceSettings.CancelRequestStamp(); // an old request from before this start means nothing
         ServiceSettings.Log($"Monitor starting (poll {_cfg.PollMs} ms, armed={_cfg.Shutdown.Enabled}, logging={_cfg.LogEnabled})");
 
         _device = new DevicePoller(_cfg.PollMs);
@@ -99,8 +101,33 @@ public sealed class BackgroundMonitor : IDisposable
         }
     }
 
+    /// <summary>
+    /// The user pressed Cancel in the widget: stop the rules that are timing from firing
+    /// until their condition clears, and call off a shutdown this service already scheduled.
+    /// Caller holds <see cref="_gate"/>.
+    /// </summary>
+    private void CheckCancelRequest()
+    {
+        var stamp = ServiceSettings.CancelRequestStamp();
+        if (stamp == _cancelStamp) return;
+        _cancelStamp = stamp;
+
+        var suppressed = _rules.SuppressActive();
+        bool wasIssued = _issued;
+        if (_issued)
+        {
+            PcShutdown.Abort();
+            _issued = false;
+            _retryNotBefore = DateTime.MinValue;
+        }
+        _pendingSummary = "";
+        ServiceSettings.Log($"Shutdown cancelled by user in the widget (rules paused: {(suppressed.Count == 0 ? "none" : string.Join(", ", suppressed))}{(wasIssued ? "; scheduled shutdown aborted" : "")})");
+        PcShutdown.Log(_cfg.LogFolder, "Cancelled by user (service)" + (wasIssued ? ": scheduled shutdown aborted" : ""));
+    }
+
     private void Evaluate(bool deviceFresh, bool gpuFresh)
     {
+        CheckCancelRequest();
         var now = DateTime.Now;
         var gpu = _lastGpu != null && (now - _lastGpu.Timestamp).TotalSeconds < 10 ? _lastGpu : null;
         var result = _rules.Evaluate(_last, gpu, now, _cfg.Shutdown, deviceFresh, gpuFresh);
@@ -143,6 +170,9 @@ public sealed class BackgroundMonitor : IDisposable
     {
         // Every ~10 minutes (and once shortly after start) return idle pages to the OS.
         if (_reloadTicks++ % 120 == 2) Native.TrimMemory();
+
+        // A cancel must work even while no samples arrive (device unplugged, GPU gone).
+        lock (_gate) CheckCancelRequest();
 
         var stamp = Stamp();
         if (stamp == _cfgStamp) return;

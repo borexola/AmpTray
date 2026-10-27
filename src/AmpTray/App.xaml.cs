@@ -445,6 +445,8 @@ public partial class App : System.Windows.Application, ISettingsHost
 
         Theme.Apply(Theme.Resolve(s));
         Loc.Apply(s.Language);
+        // "Always on top" also decides whether the widget, fault flash and countdown are pushed back above games.
+        TopmostKeeper.Enabled = s.Topmost;
         _window.SetTopmost(s.Topmost);
         _window.SetClickThrough(s.ClickThrough);
         _window.SetOpacity(Math.Clamp(s.Opacity, Settings.MinOpacity, 1.0), s.OpaqueOnHover);
@@ -578,6 +580,27 @@ public partial class App : System.Windows.Application, ISettingsHost
         HandleFaults(s);
         EvaluateShutdown(deviceFresh: true, gpuFresh: false);
         UpdateTray();
+        CheckExclusiveFullscreen();
+    }
+
+    private bool _fullscreenHinted;
+    private DateTime _fullscreenCheckedAt;
+
+    /// <summary>
+    /// A game in exclusive fullscreen hides every other window, ours included, and nothing can change
+    /// that from outside the game. Say so once per session, so the user knows to pick borderless.
+    /// </summary>
+    private void CheckExclusiveFullscreen()
+    {
+        if (_fullscreenHinted || !_settings.Topmost || _window?.IsVisible != true || _tray == null) return;
+        if ((DateTime.UtcNow - _fullscreenCheckedAt).TotalSeconds < 5) return;
+        _fullscreenCheckedAt = DateTime.UtcNow;
+        if (!TopmostKeeper.IsExclusiveFullscreenActive()) return;
+        _fullscreenHinted = true;
+        AppLog.Info("window", "exclusive-fullscreen", "A program is running in exclusive fullscreen; the widget can't be shown over it");
+        _tray.ShowBalloonTip(10000, Loc.T("Widget hidden by a fullscreen game"),
+            Loc.T("Games in exclusive fullscreen cover every other window. Set the game's display mode to borderless (or windowed fullscreen) to keep the widget on top."),
+            Forms.ToolTipIcon.Info);
     }
 
     private void OnGpuSample(GpuSnapshot? g)
@@ -676,6 +699,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         {
             _countdown = null;
             _shutdown.Suppress(new[] { p.Rule });
+            StandDownService(); // in case the service started meanwhile and is timing the same rule
             PcShutdown.Log(folder, "Cancelled by user: " + reason);
             AppLog.Info("shutdown", "cancelled", "Shutdown cancelled by user: " + reason);
             RefreshMenu();
@@ -702,16 +726,34 @@ public partial class App : System.Windows.Application, ISettingsHost
 
     private void CancelPendingShutdown()
     {
-        if (_pending.Count == 0 && _countdown == null) return;
-        _shutdown.Suppress(_pending.Select(p => p.Rule));
-        PcShutdown.Log(_settings.LogFolder, "Pending shutdown cancelled by user: " + string.Join("; ", _pending.Select(p => p.Condition)));
-        AppLog.Info("shutdown", "cancelled", "Pending shutdown cancelled by user", ("conditions", string.Join("; ", _pending.Select(p => p.Condition))));
+        bool hadSomething = _pending.Count > 0 || _countdown != null || _deferredToService;
+        // Every rule that is timing here, including one in a brief dip that is not shown as pending.
+        var rules = _shutdown.SuppressActive().Union(_pending.Select(p => p.Rule)).ToList();
+        _shutdown.Suppress(rules);
+        if (hadSomething)
+        {
+            PcShutdown.Log(_settings.LogFolder, "Pending shutdown cancelled by user: " + string.Join("; ", _pending.Select(p => p.Condition)));
+            AppLog.Info("shutdown", "cancelled", "Pending shutdown cancelled by user", ("conditions", string.Join("; ", _pending.Select(p => p.Condition))));
+        }
         _pending = Array.Empty<PendingRule>();
+        _notifiedPending.Clear();
+        _deferredToService = false;
         _window?.ShowShutdownPending(null, 0);
         _countdown?.Close(); // raises Cancelled, which suppresses the triggering rule too
-        // A shutdown the service already scheduled (shutdown /t N) can still be called off.
-        if (ServiceManager.IsRunningCached()) PcShutdown.Abort();
+        if (hadSomething || ServiceManager.IsInstalled()) StandDownService();
         RefreshMenu();
+    }
+
+    /// <summary>
+    /// The background service evaluates the same rules on its own and would still shut the PC down:
+    /// tell it to pause its active rules, and call off anything already scheduled with shutdown /t N.
+    /// </summary>
+    private static void StandDownService()
+    {
+        // Without the service nothing of ours is ever scheduled (the widget uses /t 0), so leave other shutdowns alone.
+        if (!ServiceManager.IsInstalled()) return;
+        ServiceSettings.RequestCancel();
+        System.Threading.Tasks.Task.Run(PcShutdown.Abort);
     }
 
     public void TestShutdown()
@@ -977,7 +1019,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         _clickThroughItem!.Checked = s.ClickThrough;
         _logItem!.Checked = s.LogEnabled;
         _armItem!.Checked = s.Shutdown.Enabled;
-        _cancelShutdownItem!.Visible = _pending.Count > 0 || _countdown != null;
+        _cancelShutdownItem!.Visible = _pending.Count > 0 || _countdown != null || _deferredToService;
         _updateItem!.Visible = _update != null;
         if (_update != null) _updateItem.Text = Loc.F("Update available: {0}", _update.Tag);
     }

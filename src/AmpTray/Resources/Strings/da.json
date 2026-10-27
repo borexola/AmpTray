@@ -307,5 +307,7 @@
   "No events match the filter.": "Ingen hændelser matcher filteret.",
   "{0} of {1} events": "{0} af {1} hændelser",
   "Showing the newest {0}": "Viser de nyeste {0}",
-  "The widget restarted after a crash. Details are in Settings → Logs.": "Widgetten genstartede efter et nedbrud. Detaljer findes under Indstillinger → Logfiler."
+  "The widget restarted after a crash. Details are in Settings → Logs.": "Widgetten genstartede efter et nedbrud. Detaljer findes under Indstillinger → Logfiler.",
+  "Widget hidden by a fullscreen game": "Widget skjult af et spil i fuld skærm",
+  "Games in exclusive fullscreen cover every other window. Set the game's display mode to borderless (or windowed fullscreen) to keep the widget on top.": "Spil i eksklusiv fuld skærm dækker alle andre vinduer. Sæt spillets visningstilstand til kantløs (eller vinduesbaseret fuld skærm) for at holde widgetten øverst."
 }

@@ -307,5 +307,7 @@
   "No events match the filter.": "Żadne zdarzenie nie pasuje do filtru.",
   "{0} of {1} events": "{0} z {1} zdarzeń",
   "Showing the newest {0}": "Pokazano najnowsze {0}",
-  "The widget restarted after a crash. Details are in Settings → Logs.": "Widżet uruchomił się ponownie po awarii. Szczegóły znajdziesz w Ustawienia → Dzienniki."
+  "The widget restarted after a crash. Details are in Settings → Logs.": "Widżet uruchomił się ponownie po awarii. Szczegóły znajdziesz w Ustawienia → Dzienniki.",
+  "Widget hidden by a fullscreen game": "Widżet ukryty przez grę pełnoekranową",
+  "Games in exclusive fullscreen cover every other window. Set the game's display mode to borderless (or windowed fullscreen) to keep the widget on top.": "Gry w trybie wyłącznego pełnego ekranu zakrywają wszystkie inne okna. Ustaw tryb wyświetlania gry na bez ramki (lub pełny ekran w oknie), aby widżet pozostał na wierzchu."
 }

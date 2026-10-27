@@ -146,6 +146,18 @@ public sealed class ShutdownMonitor
         foreach (var r in rules) _states[r].Suppressed = true;
     }
 
+    /// <summary>
+    /// Suppresses every rule whose condition is currently being timed (optionally only those in
+    /// <paramref name="only"/>) and returns them. Idle rules are left alone, so a later occurrence still fires.
+    /// </summary>
+    public IReadOnlyList<ShutdownRule> SuppressActive(IEnumerable<ShutdownRule>? only = null)
+    {
+        var filter = only?.ToHashSet();
+        var hit = _states.Where(kv => kv.Value.Since != null && (filter == null || filter.Contains(kv.Key))).Select(kv => kv.Key).ToList();
+        foreach (var r in hit) _states[r].Suppressed = true;
+        return hit;
+    }
+
     /// <summary>Forget all timers (disarmed, resumed from sleep, clock changed).</summary>
     public void Reset()
     {

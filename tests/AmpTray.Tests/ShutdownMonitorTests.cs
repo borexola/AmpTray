@@ -122,6 +122,23 @@ public class ShutdownMonitorTests
     }
 
     [Fact]
+    public void SuppressActive_pauses_only_the_rules_that_are_timing()
+    {
+        var m = new ShutdownMonitor { MaxGap = TimeSpan.FromMinutes(5) };
+        var cfg = TempOnly();
+        cfg.PowerRule = true;
+        cfg.PowerAboveW = 600;
+        m.Evaluate(Snap.Make(tempIn: 95), null, T0, cfg, true, false);
+
+        var hit = m.SuppressActive();
+        Assert.Equal(new[] { ShutdownRule.Temperature }, hit);
+
+        var r = m.Evaluate(Snap.Make(tempIn: 95), null, T0.AddSeconds(20), cfg, true, false);
+        Assert.Empty(r.Pending);
+        Assert.Null(r.Triggered);
+    }
+
+    [Fact]
     public void Reset_forgets_every_timer()
     {
         var m = new ShutdownMonitor();

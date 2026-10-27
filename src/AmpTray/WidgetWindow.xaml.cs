@@ -94,6 +94,8 @@ public partial class WidgetWindow : Window
         UpdateDownloadButton.Click += (_, _) => UpdateDownloadRequested?.Invoke();
         UpdateDismissButton.Click += (_, _) => { HideUpdate(); UpdateDismissed?.Invoke(); };
         SizeChanged += KeepRightEdgeAnchored;
+        // WPF finishes setting up its render target on the first frame; re-check the lock style after it.
+        ContentRendered += (_, _) => ApplyExStyle();
     }
 
     /// <summary>
@@ -123,6 +125,11 @@ public partial class WidgetWindow : Window
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
+        // WPF strips WS_EX_LAYERED from windows that don't use AllowsTransparency, which silently
+        // disables click-through. Our subclass runs after WPF's handling and puts the bit back.
+        var hwnd = new WindowInteropHelper(this).Handle;
+        _styleGuard = StyleGuard;
+        SetWindowSubclass(hwnd, _styleGuard, IntPtr.Zero, IntPtr.Zero);
         ApplyExStyle();
         // Per-pixel transparency without a layered window: WPF draws into a surface with alpha and
         // DWM shows the desktop through it wherever the panel background is translucent.
@@ -143,6 +150,8 @@ public partial class WidgetWindow : Window
         _topmost = on;
         Topmost = on;
         ApplyExStyle();
+        // Games claim the top spot for themselves; this puts the widget back above them.
+        if (on) TopmostKeeper.Register(this); else TopmostKeeper.Unregister(this);
     }
 
     public void SetClickThrough(bool on)
@@ -229,6 +238,40 @@ public partial class WidgetWindow : Window
         if (_topmost) return;
         Topmost = true;
         Topmost = false;
+    }
+
+    // ===== Click-through style guard =====
+    private const int WM_STYLECHANGING = 0x007C, WM_STYLECHANGED = 0x007D;
+    private SubclassProc? _styleGuard; // kept alive for as long as the window exists
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct STYLESTRUCT { public int StyleOld, StyleNew; }
+
+    private delegate IntPtr SubclassProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, IntPtr id, IntPtr refData);
+    [System.Runtime.InteropServices.DllImport("comctl32.dll")] private static extern bool SetWindowSubclass(IntPtr hWnd, SubclassProc proc, IntPtr id, IntPtr refData);
+    [System.Runtime.InteropServices.DllImport("comctl32.dll")] private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    private IntPtr StyleGuard(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, IntPtr id, IntPtr refData)
+    {
+        var result = DefSubclassProc(hWnd, msg, wParam, lParam); // WPF (and Windows) first
+        // Safety net for any path that changed the style without asking first: put it back afterwards.
+        if (msg == WM_STYLECHANGED && (int)wParam.ToInt64() == Native.GWL_EXSTYLE && _clickThrough)
+        {
+            const int need = Native.WS_EX_TRANSPARENT | Native.WS_EX_LAYERED;
+            if ((Native.GetWindowLong(hWnd, Native.GWL_EXSTYLE) & need) != need)
+                Dispatcher.BeginInvoke(ApplyExStyle, System.Windows.Threading.DispatcherPriority.Send);
+        }
+        if (msg == WM_STYLECHANGING && (int)wParam.ToInt64() == Native.GWL_EXSTYLE && _clickThrough)
+        {
+            var s = System.Runtime.InteropServices.Marshal.PtrToStructure<STYLESTRUCT>(lParam);
+            const int need = Native.WS_EX_TRANSPARENT | Native.WS_EX_LAYERED;
+            if ((s.StyleNew & need) != need)
+            {
+                s.StyleNew |= need;
+                System.Runtime.InteropServices.Marshal.StructureToPtr(s, lParam, false);
+            }
+        }
+        return result;
     }
 
     private void ApplyExStyle()
