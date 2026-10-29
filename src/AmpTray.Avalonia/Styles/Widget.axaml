@@ -1,0 +1,83 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The widget's building blocks, named as in the WPF App.xaml so the view tree ports 1:1. -->
+
+    <Style Selector="TextBlock.SectionLabel">
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+
+    <Style Selector="Border.Divider">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Margin" Value="0,10,0,10" />
+        <Setter Property="Background" Value="{DynamicResource DividerBrush}" />
+    </Style>
+
+    <!-- Small square icon button (header) -->
+    <Style Selector="Button.IconButton">
+        <Setter Property="Width" Value="24" />
+        <Setter Property="Height" Value="24" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                    <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.IconButton:pointerover /template/ Border#Bd">
+        <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+    </Style>
+    <Style Selector="Button.IconButton:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+    <Style Selector="Button.IconButton PathIcon">
+        <Setter Property="Width" Value="12" />
+        <Setter Property="Height" Value="12" />
+        <Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}" />
+    </Style>
+
+    <!-- Pill text button (Acknowledge, Reset) -->
+    <Style Selector="Button.PillButton">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="10,3,10,4" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6"
+                        Padding="{TemplateBinding Padding}">
+                    <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.PillButton:pointerover /template/ Border#Bd">
+        <Setter Property="Opacity" Value="0.8" />
+    </Style>
+
+    <!-- Context menu on the dark panel: keep Fluent's menu but in the widget's colours. -->
+    <Style Selector="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource PanelSolidBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="FontFamily" Value="{DynamicResource DisplayFont}" />
+        <Setter Property="FontSize" Value="12.5" />
+    </Style>
+    <Style Selector="MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+</Styles>

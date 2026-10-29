@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    amptray: the AmpTray desktop widget for Linux, in Avalonia. Same look and features as the WPF
+    widget in src/AmpTray (which stays untouched), built on AmpTray.Core and AmpTray.Linux.
+    Culture-aware (Loc picks the UI language), so no InvariantGlobalization here.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>amptray</AssemblyName>
+    <RootNamespace>AmpTray.Avalonia</RootNamespace>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+    <ApplicationManifest></ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="6" />
+    <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="false" />
+  </ItemGroup>
+
+  <!-- The version comes from build-linux.sh / CI with the Version property, like the monitor. -->
+  <PropertyGroup>
+    <Product>AmpTray for WireView Pro II</Product>
+    <AssemblyTitle>AmpTray</AssemblyTitle>
+    <Authors>borexola</Authors>
+    <Company>borexola</Company>
+    <Copyright>Copyright © borexola</Copyright>
+    <Description>Unofficial read-only desktop widget for the Thermal Grizzly WireView Pro II, for Linux. Not affiliated with or endorsed by Thermal Grizzly or NVIDIA.</Description>
+    <RepositoryUrl>https://github.com/borexola/AmpTray</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.22" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AmpTray.Core\AmpTray.Core.csproj" />
+    <ProjectReference Include="..\AmpTray.Linux\AmpTray.Linux.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -3,6 +3,7 @@
   <Project Path="src/AmpTray.Linux/AmpTray.Linux.csproj" />
   <Project Path="src/AmpTray/AmpTray.csproj" />
   <Project Path="src/AmpTray.Monitor/AmpTray.Monitor.csproj" />
+  <Project Path="src/AmpTray.Avalonia/AmpTray.Avalonia.csproj" />
   <Project Path="tests/AmpTray.Core.Tests/AmpTray.Core.Tests.csproj" />
   <Project Path="tests/AmpTray.Tests/AmpTray.Tests.csproj" />
 </Solution>
