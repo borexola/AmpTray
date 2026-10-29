@@ -142,7 +142,7 @@ public sealed class GpuPoller : IDisposable
         }
         catch (DllNotFoundException)
         {
-            Unavailable = "NVIDIA driver (nvml.dll) not found";
+            Unavailable = $"NVIDIA driver ({Nvml.LibraryName}) not found";
             return false;
         }
         catch (Exception ex)

@@ -54,18 +54,20 @@ public sealed class Settings
 
     public const double MinOpacity = 0.05;
 
+    // SpecialFolderOption.Create: on Linux GetFolderPath returns "" while ~/.config or ~/Documents
+    // does not exist yet, which would put these files in the working directory. Windows always has them.
     public static string DefaultLogFolder => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "AmpTray", "Logs");
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments, Environment.SpecialFolderOption.Create), "AmpTray", "Logs");
 
     public static string AppDataFolder => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AmpTray");
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.Create), "AmpTray");
 
     /// <summary>Where settings live; tests point this at a scratch folder.</summary>
     internal static string FilePath { get; set; } = Path.Combine(AppDataFolder, "settings.json");
 
     /// <summary>Settings file of the early "WireView Widget" builds, carried over on first run.</summary>
     internal static string LegacyFilePath { get; set; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WireViewWidget", "settings.json");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.Create), "WireViewWidget", "settings.json");
 
     public static Settings Load()
     {

@@ -4,12 +4,13 @@ using System.Linq;
 using System.Threading;
 using AmpTray.Device;
 using AmpTray.Gpu;
+using AmpTray.Platform;
 
 namespace AmpTray.Service;
 
 /// <summary>
 /// Headless version of what the widget does for protection: poll the device and the GPU, log to CSV
-/// and evaluate the auto-shutdown rules. Runs inside the Windows service, so it works from boot with
+/// and evaluate the auto-shutdown rules. Runs inside the background service, so it works from boot with
 /// nobody signed in. It never touches the device beyond the same two read-only requests.
 /// </summary>
 public sealed class BackgroundMonitor : IDisposable
@@ -17,8 +18,7 @@ public sealed class BackgroundMonitor : IDisposable
     private readonly object _gate = new();
     private readonly ShutdownMonitor _rules = new();
     private readonly DataLogger _logger = new();
-    private readonly FpsTracker _fps = new();
-    private readonly PresentMonRunner _presentMon = new();
+    private readonly IFpsSource _fps = PlatformServices.Current.CreateFpsSource();
     private readonly Timer _reload;
 
     private ServiceSettings _cfg = ServiceSettings.Load();
@@ -52,11 +52,8 @@ public sealed class BackgroundMonitor : IDisposable
 
         _device.Start();
         _gpu.Start();
-        // PresentMon (shipped next to the exe) is the reference frame counter; the built-in tracker is the fallback.
-        _presentMon.SetInterval(_cfg.PollMs);
         _fps.SetInterval(_cfg.PollMs);
-        if (PresentMonRunner.IsAvailable) _presentMon.Start();
-        if (!_presentMon.Active) _fps.Start();
+        _fps.Start();
         _reload.Change(5000, 5000);
     }
 
@@ -169,7 +166,7 @@ public sealed class BackgroundMonitor : IDisposable
     private void ReloadIfChanged()
     {
         // Every ~10 minutes (and once shortly after start) return idle pages to the OS.
-        if (_reloadTicks++ % 120 == 2) Native.TrimMemory();
+        if (_reloadTicks++ % 120 == 2) PlatformServices.Current.TrimMemory();
 
         // A cancel must work even while no samples arrive (device unplugged, GPU gone).
         lock (_gate) CheckCancelRequest();
@@ -182,7 +179,6 @@ public sealed class BackgroundMonitor : IDisposable
             _cfg = ServiceSettings.Load();
             if (_device != null) _device.IntervalMs = _cfg.PollMs;
             if (_gpu != null) { _gpu.IntervalMs = _cfg.PollMs; _gpu.DeviceIndex = _cfg.GpuIndex; }
-            _presentMon.SetInterval(_cfg.PollMs);
             _fps.SetInterval(_cfg.PollMs);
             _rules.MaxGap = TimeSpan.FromSeconds(Math.Max(10, _cfg.PollMs * 4 / 1000.0));
             if (!_cfg.LogEnabled) _logger.Close();
@@ -193,7 +189,6 @@ public sealed class BackgroundMonitor : IDisposable
     public void Dispose()
     {
         _reload.Dispose();
-        _presentMon.Dispose();
         _fps.Dispose();
         _device?.Dispose();
         _gpu?.Dispose();

@@ -1,0 +1,4 @@
+# Shell scripts and systemd/udev files are read by Linux tools: keep LF whatever the checkout platform.
+*.sh text eol=lf
+*.service text eol=lf
+*.rules text eol=lf

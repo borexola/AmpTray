@@ -27,8 +27,9 @@ Download from [Releases](https://github.com/borexola/AmpTray/releases):
 
 - `AmpTray-<version>-x64.msi`: installer with Start Menu entry, clean upgrades and uninstall
 - `AmpTray-<version>-win-x64-portable.zip`: unzip anywhere and run `AmpTray.exe`
+- `AmpTray-<version>-linux-x64.tar.gz` / `-linux-arm64.tar.gz`: the headless monitor for Linux, see [Linux](#linux-headless-monitor)
 
-Both are self-contained (no .NET install needed), Windows 10/11 x64. The installer's first page picks the widget language; unattended: `msiexec /i AmpTray-<version>-x64.msi /qn APPLANGUAGE=fr`.
+All are self-contained (no .NET install needed); the Windows builds need Windows 10/11 x64. The installer's first page picks the widget language; unattended: `msiexec /i AmpTray-<version>-x64.msi /qn APPLANGUAGE=fr`.
 
 ## Use
 
@@ -55,9 +56,21 @@ On an active device fault every monitor gets a pulsing red frame, the widget fla
 
 Arm it in Settings or the tray menu. It runs `shutdown /s /f /t 0` when a rule holds for its duration: a WireView temperature, N or more wires above a current, a selected device fault, total power, or GPU temperature. Safeguards: at least 10 s and 2 readings in a row from the rule's own source; an amber countdown banner with Cancel and a notification while timing; short dips below the threshold don't reset the timer; timers reset on disconnect, sleep/resume and clock changes; an optional 10/30/60 s on-screen countdown; every event logged to `shutdown_events.log`; a dry-run test button.
 
+## Linux (headless monitor)
+
+`amptray-monitor` is the background part of AmpTray for Linux: it polls the WireView (the same two read-only requests) and the NVIDIA GPU through NVML, writes the CSV logs and runs the auto-shutdown rules. There is no widget. It runs as a systemd service, as root, so it can power the machine off.
+
+```bash
+tar xzf AmpTray-<version>-linux-x64.tar.gz && cd amptray-<version>-linux-x64 && sudo ./install.sh
+```
+
+That puts the program in `/opt/amptray`, enables and starts the `amptray-monitor` service, and adds a udev rule so a WireView's `/dev/ttyACM*` is also readable by the `dialout` group. Check it with `sudo amptray-monitor --probe`, which prints one reading from the device and the GPU. Running `install.sh` again upgrades; `sudo ./uninstall.sh` removes it (`--purge` also deletes settings and logs).
+
+Settings live in `/var/lib/amptray/service.json`, created on first start with the rules off, and are re-read within a few seconds of a change. The fields are the ones the Windows widget writes for its service: `PollMs`, `GpuIndex`, `LogEnabled`, `LogIntervalSeconds`, `LogFolder` (default `/var/lib/amptray/Logs`) and `Shutdown` with `Enabled`, `CountdownSeconds` and the rules (`TempRule`/`TempAboveC`/`TempMinutes`, `WireRule`/`WireCount`/`WireAboveA`/`WireMinutes`, `FaultRule`/`FaultMask`/`FaultMinutes`, `PowerRule`/`PowerAboveW`/`PowerMinutes`, `GpuTempRule`/`GpuTempAboveC`/`GpuTempMinutes`). A countdown is announced with `wall`; `touch /var/lib/amptray/cancel-shutdown.flag` cancels it and pauses the rules that fired, as Cancel does in the widget. Events go to `/var/lib/amptray/service.log` and `journalctl -u amptray-monitor`.
+
 ## Build
 
-Needs the .NET 10 SDK. `dotnet build` at the root builds `AmpTray.slnx`; `.\build\build.ps1` publishes, zips and builds the MSI into `artifacts\out` (installs WiX 5 locally if needed). Sources live in `src\AmpTray`, the installer and scripts in `build`, screenshots in `docs`. Unit tests live in `tests\AmpTray.Tests` and run with `dotnet test`; the Build workflow runs them before packaging. Pushing a tag `vX.Y.Z` makes the workflow publish both files as a GitHub release.
+Needs the .NET 10 SDK. `dotnet build` at the root builds `AmpTray.slnx`; `.\build\build.ps1` publishes, zips and builds the MSI into `artifacts\out` (installs WiX 5 locally if needed); `./build/build-linux.sh` (on Linux) publishes the monitor and packs the tarballs. The Windows app lives in `src\AmpTray`; everything that needs no window (device protocol, NVML, shutdown rules, logging, settings, the headless monitor) lives in `src\AmpTray.Core`, which targets plain .NET and reaches the OS only through `IPlatform`; `src\AmpTray.Monitor` is the Linux host with its `LinuxPlatform`. The installer and scripts in `build`, screenshots in `docs`. Unit tests run with `dotnet test`: `tests\AmpTray.Core.Tests` (plain .NET, runs on both platforms) and `tests\AmpTray.Tests` (the WPF side). The Build workflow runs them on Windows and Linux before packaging. Pushing a tag `vX.Y.Z` makes the workflow publish all files as a GitHub release.
 
 <details>
 <summary>More screenshots</summary>

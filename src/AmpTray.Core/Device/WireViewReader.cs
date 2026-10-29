@@ -5,7 +5,7 @@ using System.IO.Ports;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using Microsoft.Win32;
+using AmpTray.Platform;
 
 namespace AmpTray.Device;
 
@@ -18,21 +18,22 @@ namespace AmpTray.Device;
 /// There is deliberately no general "send" method, so config, calibration, flash, screen,
 /// fault-clear and bootloader commands cannot be issued from here.
 ///
-/// The port is opened per request under the "Global\Access_USB_Sensors" mutex, the same
-/// convention the official app (and other sensor tools) use, so they can all run side by side.
+/// The port is opened per request under the platform's shared device lock (on Windows the
+/// "Global\Access_USB_Sensors" mutex the official app and other sensor tools use), so they can all
+/// run side by side.
 /// </summary>
 public sealed class WireViewReader : IDisposable
 {
     private const string WelcomeMessage = "Thermal Grizzly WireView Pro II";
-    private const string SharedMutexName = @"Global\Access_USB_Sensors";
-    private const string UsbVidPid = "VID_0483&PID_5740";
+    private const ushort UsbVendorId = 0x0483;
+    private const ushort UsbProductId = 0x5740;
     internal const int SensorStructSize = 100;
     private const int IoTimeoutMs = 1000;
 
     private static readonly byte[] CmdReadSensorValues = { 0x04 };
 
-    private Mutex? _mutex;
-    private bool _mutexTried;
+    private IDeviceLock? _lock;
+    private bool _lockTried;
     private bool _resync;
 
     // VID_0483/PID_5740 is ST's generic virtual COM port ID, shared by many hobby boards. Ports that
@@ -186,15 +187,14 @@ public sealed class WireViewReader : IDisposable
         return (status & ~0x3F) == 0 && (log & ~0x3F) == 0; // six known fault bits
     }
 
-    /// <summary>Opens the port under the shared mutex (when available), runs one exchange, then closes and releases.</summary>
+    /// <summary>Opens the port under the shared lock (when available), runs one exchange, then closes and releases.</summary>
     private byte[]? Exchange(string portName, Func<SerialPort, byte[]?> body)
     {
-        var mutex = GetMutex();
+        var shared = GetLock();
         bool owned = false;
-        if (mutex != null)
+        if (shared != null)
         {
-            try { owned = mutex.WaitOne(2000); }
-            catch (AbandonedMutexException) { owned = true; }
+            owned = shared.Wait(2000);
             if (!owned) return null;
         }
 
@@ -217,33 +217,18 @@ public sealed class WireViewReader : IDisposable
         }
         finally
         {
-            if (owned) mutex!.ReleaseMutex();
+            if (owned) shared!.Release();
         }
     }
 
-    /// <summary>
-    /// The shared mutex may already exist with an ACL we cannot create against (a tool running
-    /// elevated made it). Try to open it instead; if that fails too, run without it rather than dying.
-    /// </summary>
-    private Mutex? GetMutex()
+    /// <summary>Opens the shared lock once; if the platform cannot provide it, polling runs without it.</summary>
+    private IDeviceLock? GetLock()
     {
-        if (_mutexTried) return _mutex;
-        _mutexTried = true;
-        try
-        {
-            _mutex = new Mutex(false, SharedMutexName);
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or System.IO.IOException)
-        {
-            try { _mutex = Mutex.OpenExisting(SharedMutexName); }
-            catch (Exception ex2) { MutexProblem = ex2.Message; _mutex = null; }
-        }
-        catch (Exception ex)
-        {
-            MutexProblem = ex.Message;
-            _mutex = null;
-        }
-        return _mutex;
+        if (_lockTried) return _lock;
+        _lockTried = true;
+        _lock = PlatformServices.Current.OpenDeviceLock(out var problem);
+        MutexProblem = problem;
+        return _lock;
     }
 
     private static byte[]? ReadExact(SerialPort port, int size)
@@ -261,7 +246,7 @@ public sealed class WireViewReader : IDisposable
         return got == size ? buf : null;
     }
 
-    /// <summary>COM ports belonging to the STM32 virtual COM port VID/PID, present right now.</summary>
+    /// <summary>Serial ports belonging to the STM32 virtual COM port VID/PID, present right now.</summary>
     private IEnumerable<string> FindCandidatePorts()
     {
         var present = SerialPort.GetPortNames().OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
@@ -273,25 +258,12 @@ public sealed class WireViewReader : IDisposable
         }
         var presentSet = new HashSet<string>(present, StringComparer.OrdinalIgnoreCase);
 
-        var found = new List<string>();
-        // Match "VID_0483&PID_5740" and variants such as "...&MI_00" (composite) or "...&REV_0200".
-        using var usb = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Enum\USB");
-        if (usb != null)
-        {
-            foreach (var hwId in usb.GetSubKeyNames().Where(k => k.StartsWith(UsbVidPid, StringComparison.OrdinalIgnoreCase)))
-            {
-                using var dev = usb.OpenSubKey(hwId);
-                if (dev == null) continue;
-                foreach (var instance in dev.GetSubKeyNames())
-                {
-                    using var p = dev.OpenSubKey($@"{instance}\Device Parameters");
-                    if (p?.GetValue("PortName") is string name && presentSet.Contains(name) && !found.Contains(name))
-                        found.Add(name);
-                }
-            }
-        }
-        return found.OrderBy(n => n, StringComparer.OrdinalIgnoreCase);
+        return PlatformServices.Current.FindUsbSerialPorts(UsbVendorId, UsbProductId)
+            .Where(presentSet.Contains)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
-    public void Dispose() => _mutex?.Dispose();
+    public void Dispose() => _lock?.Dispose();
 }

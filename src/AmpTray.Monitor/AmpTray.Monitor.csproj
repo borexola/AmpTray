@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    amptray-monitor: the headless monitor (device and GPU polling, CSV logging, auto-shutdown rules)
+    as a console program for Linux, run by systemd. It is the same BackgroundMonitor the Windows
+    service hosts; the Linux-specific pieces (USB port lookup, power-off) live in LinuxPlatform.
+    build/build-linux.sh publishes it self-contained, single-file, per architecture.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>amptray-monitor</AssemblyName>
+    <RootNamespace>AmpTray.Monitor</RootNamespace>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- No libicu dependency: the monitor only writes logs and CSV, both culture-invariant. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>false</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="6" />
+    <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="false" />
+  </ItemGroup>
+
+  <!-- The version comes from build-linux.sh / CI with the Version property; the version switch prints it. -->
+  <PropertyGroup>
+    <Product>AmpTray for WireView Pro II</Product>
+    <AssemblyTitle>amptray-monitor</AssemblyTitle>
+    <Authors>borexola</Authors>
+    <Company>borexola</Company>
+    <Copyright>Copyright © borexola</Copyright>
+    <Description>Unofficial read-only monitor for the Thermal Grizzly WireView Pro II: CSV logging and auto-shutdown rules, for Linux. Not affiliated with or endorsed by Thermal Grizzly or NVIDIA.</Description>
+    <RepositoryUrl>https://github.com/borexola/AmpTray</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AmpTray.Core\AmpTray.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AmpTray.Core.Tests" />
+  </ItemGroup>
+
+</Project>

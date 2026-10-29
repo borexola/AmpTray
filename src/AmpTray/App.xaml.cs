@@ -87,7 +87,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         // A crash on any thread: log it, record it, and let a fresh copy take over (see CrashRecovery).
         AppDomain.CurrentDomain.UnhandledException += (_, ex) => CrashRecovery.Handle(ex.ExceptionObject as Exception, "background", ReleaseSingleInstance);
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, ex) => { ex.SetObserved(); LogError(ex.Exception, "task"); };
-        CrashRecovery.RegisterWithWindows();
+        Platform.WindowsPlatform.RegisterRestart(CrashRecovery.RecoveredSwitch);
 
         bool recovered = e.Args.Contains(CrashRecovery.RecoveredSwitch, StringComparer.OrdinalIgnoreCase);
         AppLog.Info("app", recovered ? "recovered" : "started", recovered ? "AmpTray restarted after a crash" : "AmpTray started",

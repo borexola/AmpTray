@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Everything that does not need a window: the WireView protocol, NVML, shutdown rules, logging,
+    settings and the headless monitor. Plain net10.0 so it builds and runs on Linux too; anything
+    OS-specific goes through AmpTray.Platform.IPlatform, which each front end fills in at startup.
+    The platform analyzer (CA1416, an error here) rejects any Windows-only API that slips in.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>AmpTray.Core</AssemblyName>
+    <RootNamespace>AmpTray</RootNamespace>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- The version comes from the app build (build.ps1 / CI pass -p:Version); UpdateChecker reads the entry exe. -->
+  <PropertyGroup>
+    <Product>AmpTray for WireView Pro II</Product>
+    <Authors>borexola</Authors>
+    <Company>borexola</Company>
+    <Copyright>Copyright © borexola</Copyright>
+    <RepositoryUrl>https://github.com/borexola/AmpTray</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Strings\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AmpTray" />
+    <InternalsVisibleTo Include="AmpTray.Tests" />
+    <InternalsVisibleTo Include="AmpTray.Core.Tests" />
+  </ItemGroup>
+
+</Project>

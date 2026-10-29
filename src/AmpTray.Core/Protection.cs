@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Threading;
 using AmpTray.Device;
+using AmpTray.Platform;
 
 namespace AmpTray;
 
@@ -228,7 +228,7 @@ public sealed class ShutdownMonitor
     }
 }
 
-/// <summary>Runs the actual Windows shutdown and keeps an audit trail.</summary>
+/// <summary>Runs the actual shutdown through the platform and keeps an audit trail.</summary>
 public static class PcShutdown
 {
     public static string LogFile(string logFolder) => Path.Combine(logFolder, "shutdown_events.log");
@@ -246,30 +246,15 @@ public static class PcShutdown
         }
     }
 
-    /// <summary>Cancels a shutdown that shutdown.exe has scheduled but not yet carried out (delayed form).</summary>
-    public static void Abort()
-    {
-        try
-        {
-            using var p = Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "shutdown.exe"), "/a")
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            });
-            p?.WaitForExit(5000);
-        }
-        catch
-        {
-            // Nothing scheduled, or no permission: nothing to undo.
-        }
-    }
+    /// <summary>Cancels a shutdown that was scheduled with a delay but not yet carried out.</summary>
+    public static void Abort() => PlatformServices.Current.AbortShutdown();
 
     /// <summary>
-    /// Forced shutdown: /f closes apps that would otherwise block it with save prompts. With
-    /// <paramref name="delaySeconds"/> &gt; 0 Windows shows its own countdown to signed-in users
+    /// Forced shutdown that closes apps which would otherwise block it with save prompts. With
+    /// <paramref name="delaySeconds"/> &gt; 0 the OS shows its own countdown to signed-in users
     /// and the shutdown can still be cancelled with <see cref="Abort"/>.
-    /// Returns false if shutdown.exe could not be started; a later refusal by Windows (non-zero exit,
-    /// e.g. 1190 = a shutdown is already scheduled) is reported through <paramref name="onFailure"/>.
+    /// Returns false if the shutdown could not be started; a later refusal by the OS (on Windows
+    /// e.g. exit code 1190 = a shutdown is already scheduled) is reported through <paramref name="onFailure"/>.
     /// </summary>
     public static bool Execute(string reason, string logFolder, Action<string> onFailure) => Execute(reason, logFolder, 0, onFailure);
 
@@ -284,42 +269,14 @@ public static class PcShutdown
 
         string comment = (Loc.T("AmpTray auto shutdown:") + " " + reason).Replace("\"", "'");
         if (comment.Length > 500) comment = comment[..500];
-        Process? p;
-        try
-        {
-            p = Process.Start(new ProcessStartInfo
-            {
-                FileName = Path.Combine(Environment.SystemDirectory, "shutdown.exe"),
-                Arguments = $"/s /f /t {Math.Clamp(delaySeconds, 0, 600)} /c \"{comment}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            });
-        }
-        catch (Exception ex)
-        {
-            Log(logFolder, "Shutdown FAILED to start: " + ex.Message);
-            onFailure(ex.Message);
-            return false;
-        }
-        if (p == null)
-        {
-            onFailure("shutdown.exe could not be started.");
-            return false;
-        }
 
-        // Don't block the UI thread on the exit code.
-        _ = Task.Run(() =>
+        bool started = false;
+        bool ok = PlatformServices.Current.StartShutdown(Math.Clamp(delaySeconds, 0, 600), comment, message =>
         {
-            using (p)
-            {
-                if (p.WaitForExit(5000) && p.ExitCode != 0)
-                {
-                    string msg = $"shutdown.exe exited with code {p.ExitCode}.";
-                    Log(logFolder, "Shutdown FAILED: " + msg);
-                    onFailure(msg);
-                }
-            }
+            Log(logFolder, (Volatile.Read(ref started) ? "Shutdown FAILED: " : "Shutdown FAILED to start: ") + message);
+            onFailure(message);
         });
-        return true;
+        Volatile.Write(ref started, true);
+        return ok;
     }
 }

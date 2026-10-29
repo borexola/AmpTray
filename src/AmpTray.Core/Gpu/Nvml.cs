@@ -1,15 +1,36 @@
 using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace AmpTray.Gpu;
 
 /// <summary>
-/// Minimal P/Invoke surface over NVIDIA's NVML (nvml.dll, installed with the display driver).
-/// Every call here is a read; NVML's write/control APIs are deliberately not declared.
+/// Minimal P/Invoke surface over NVIDIA's NVML (nvml.dll on Windows, libnvidia-ml.so.1 on Linux;
+/// both ship with the display driver). Every call here is a read; NVML's write/control APIs are
+/// deliberately not declared.
 /// </summary>
 internal static class Nvml
 {
     private const string Lib = "nvml.dll";
+    private static readonly string[] LinuxLibs = { "libnvidia-ml.so.1", "libnvidia-ml.so" };
+
+    /// <summary>The library name as the user would know it on this OS, for messages.</summary>
+    public static string LibraryName => OperatingSystem.IsWindows() ? Lib : LinuxLibs[0];
+
+    static Nvml()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        NativeLibrary.SetDllImportResolver(typeof(Nvml).Assembly, Resolve);
+    }
+
+    /// <summary>Only the NVML import is redirected; anything else keeps the default probing.</summary>
+    private static IntPtr Resolve(string name, Assembly assembly, DllImportSearchPath? searchPath)
+    {
+        if (name != Lib) return IntPtr.Zero;
+        foreach (var lib in LinuxLibs)
+            if (NativeLibrary.TryLoad(lib, assembly, searchPath, out var handle)) return handle;
+        throw new DllNotFoundException($"{LinuxLibs[0]} not found");
+    }
 
     public const int Success = 0;
     public const int NotSupported = 3;

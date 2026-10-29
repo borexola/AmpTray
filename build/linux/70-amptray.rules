@@ -1,0 +1,4 @@
+# WireView Pro II (STM32 virtual COM port, 0483:5740): let members of "dialout" and the signed-in
+# user open it, so "amptray-monitor --probe" works without root. The service itself runs as root.
+# Numbered below 73: the uaccess tag is only honoured by rules that run before 73-seat-late.rules.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", MODE="0660", GROUP="dialout", TAG+="uaccess"

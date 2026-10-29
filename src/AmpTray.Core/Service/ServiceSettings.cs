@@ -22,7 +22,12 @@ public sealed class ServiceSettings
     /// <summary>Tests point the machine-wide folder at a scratch directory.</summary>
     internal static string? FolderOverride { get; set; }
 
-    public static string Folder => FolderOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "AmpTray");
+    /// <summary>ProgramData\AmpTray on Windows; /var/lib/amptray elsewhere (CommonApplicationData maps to the read-only /usr/share there).</summary>
+    public static string Folder => FolderOverride ?? DefaultFolder;
+
+    private static string DefaultFolder => OperatingSystem.IsWindows()
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "AmpTray")
+        : "/var/lib/amptray";
     public static string FilePath => Path.Combine(Folder, "service.json");
     public static string LogFile => Path.Combine(Folder, "service.log");
 
@@ -112,5 +117,9 @@ public sealed class ServiceSettings
     {
         _log ??= new Logging.EventLog(LogFile);
         _log.Write(level, "service", @event, message, data);
+        try { Mirror?.Invoke(level, message); } catch { }
     }
+
+    /// <summary>Also receives every log line; the console host points this at stdout so the journal shows them.</summary>
+    public static Action<Logging.LogLevel, string>? Mirror { get; set; }
 }

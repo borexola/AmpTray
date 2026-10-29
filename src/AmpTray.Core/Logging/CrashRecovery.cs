@@ -3,14 +3,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 
 namespace AmpTray.Logging;
 
 /// <summary>
-/// Brings the widget back after a crash. Two layers: Windows Error Reporting restarts the process
-/// after a native crash or a hang (once it has run for a minute), and the managed handlers log the
+/// Brings the widget back after a crash. Two layers: the OS restarts the process after a native
+/// crash or a hang where the platform supports it (Windows Error Reporting), and the managed handlers log the
 /// exception, record it and start a fresh copy themselves. A crash loop is cut short: after
 /// <see cref="MaxCrashes"/> crashes within <see cref="Window"/> the app stays down and says so.
 /// </summary>
@@ -20,21 +19,8 @@ public static class CrashRecovery
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(10);
     public const string RecoveredSwitch = "/recovered";
 
-    private const int RESTART_NO_PATCH = 4;
-    private const int RESTART_NO_REBOOT = 8;
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    private static extern int RegisterApplicationRestart(string? commandLine, int flags);
-
     /// <summary>Where recent crash times are kept so a loop can be recognised across restarts.</summary>
     internal static string HistoryPath { get; set; } = Path.Combine(Settings.AppDataFolder, "crashes.json");
-
-    /// <summary>Asks Windows to relaunch the app after a crash or hang, with the recovered switch.</summary>
-    public static void RegisterWithWindows()
-    {
-        try { RegisterApplicationRestart(RecoveredSwitch, RESTART_NO_PATCH | RESTART_NO_REBOOT); }
-        catch (Exception ex) when (ex is DllNotFoundException || ex is EntryPointNotFoundException) { }
-    }
 
     /// <summary>Restart unless this would be the fourth crash inside the window.</summary>
     public static bool ShouldRestart(IEnumerable<DateTime> recentCrashes, DateTime now) =>

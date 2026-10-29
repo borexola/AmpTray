@@ -22,7 +22,8 @@ public static class UpdateChecker
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
 
-    public static Version Current => Normalize(Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0));
+    /// <summary>Version of the running app (the entry executable, not this library).</summary>
+    public static Version Current => Normalize((Assembly.GetEntryAssembly() ?? typeof(UpdateChecker).Assembly).GetName().Version ?? new Version(0, 0, 0, 0));
 
     public static async Task<UpdateInfo?> CheckAsync() => (await CheckDetailedAsync().ConfigureAwait(false)).Update;
 
