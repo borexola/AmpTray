@@ -39,7 +39,9 @@ jobs:
           path: artifacts/test-results/*.trx
           if-no-files-found: error
 
-  # The core and the headless monitor on Linux: tests, then the self-contained tarballs.
+  # The core, the service and the Avalonia widget on Linux: tests, then the self-contained tarballs
+  # (amptray-monitor and amptray for linux-x64 and linux-arm64, with install.sh, the systemd unit,
+  # the udev rule, the tmpfiles entry and the desktop entry).
   linux:
     name: Linux tests and tarballs
     runs-on: ubuntu-latest
@@ -52,6 +54,11 @@ jobs:
 
       - name: Run core tests
         run: dotnet test tests/AmpTray.Core.Tests/AmpTray.Core.Tests.csproj -c Release --nologo --logger trx --results-directory artifacts/test-results
+
+      - name: Build the Linux programs
+        run: |
+          dotnet build src/AmpTray.Monitor/AmpTray.Monitor.csproj -c Release --nologo
+          dotnet build src/AmpTray.Avalonia/AmpTray.Avalonia.csproj -c Release --nologo
 
       - name: Upload test results
         if: always()
