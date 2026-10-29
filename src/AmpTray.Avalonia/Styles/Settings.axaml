@@ -60,6 +60,17 @@
         <Setter Property="Foreground" Value="{DynamicResource PanelSolidBrush}" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+    <!-- Fluent sets the presenter's own foreground per state, which would win over the setters above. -->
+    <Style Selector="RadioButton.Segment /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.Segment /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+    <Style Selector="RadioButton.Segment:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.Segment:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+    <Style Selector="RadioButton.Segment:checked /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.Segment:checked /template/ ContentPresenter#PART_ContentPresenter, RadioButton.Segment:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.Segment:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource PanelSolidBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
 
     <!-- Left navigation item -->
     <Style Selector="RadioButton.NavItem">
