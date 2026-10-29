@@ -120,8 +120,15 @@ public partial class App : Application
         if (settingsArg != null) OpenSettings(settingsArg.Contains(':') ? settingsArg[(settingsArg.IndexOf(':') + 1)..] : null);
         if (args.Contains("--test-alert", StringComparer.OrdinalIgnoreCase))
             Dispatcher.UIThread.Post(TestAlert, DispatcherPriority.ApplicationIdle);
+        if (args.Contains("--test-shutdown", StringComparer.OrdinalIgnoreCase))
+            Dispatcher.UIThread.Post(TestShutdown, DispatcherPriority.ApplicationIdle);
         var shot = args.FirstOrDefault(a => a.StartsWith("--screenshot:", StringComparison.OrdinalIgnoreCase));
-        if (shot != null) ScheduleScreenshot(shot["--screenshot:".Length..], args.Contains("--expanded", StringComparer.OrdinalIgnoreCase));
+        if (shot != null)
+        {
+            var delayArg = args.FirstOrDefault(a => a.StartsWith("--screenshot-delay:", StringComparison.OrdinalIgnoreCase));
+            int delay = delayArg != null && int.TryParse(delayArg["--screenshot-delay:".Length..], out var d) ? d : 4;
+            ScheduleScreenshot(shot["--screenshot:".Length..], args.Contains("--expanded", StringComparer.OrdinalIgnoreCase), delay);
+        }
     }
 
     private void OnLanguageChanged()
@@ -297,6 +304,7 @@ public partial class App : Application
     private void ShutDown()
     {
         _showWatch?.Dispose();
+        _wake?.Dispose();
         _poller?.Dispose();
         _gpu?.Dispose();
         _logger.Dispose();
@@ -311,9 +319,9 @@ public partial class App : Application
     }
 
     /// <summary>Developer aid: renders the widget to a PNG from inside the app (the compositor hides it from X11 grabs).</summary>
-    private void ScheduleScreenshot(string path, bool expanded)
+    private void ScheduleScreenshot(string path, bool expanded, int delaySeconds)
     {
-        var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+        var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(delaySeconds) };
         t.Tick += (_, _) =>
         {
             t.Stop();
@@ -332,6 +340,18 @@ public partial class App : Application
                             rtb.Render(root);
                             rtb.Save(path);
                             Console.WriteLine($"screenshot: {path} ({size.Width}x{size.Height})");
+                        }
+                        int n = 0;
+                        foreach (var w in _desktop!.Windows)
+                        {
+                            if (w == _window || w.Content is not Visual v || v.Bounds.Width <= 0) continue;
+                            double sc = w.RenderScaling;
+                            var sz = new PixelSize((int)Math.Ceiling(v.Bounds.Width * sc), (int)Math.Ceiling(v.Bounds.Height * sc));
+                            using var r2 = new RenderTargetBitmap(sz, new Vector(96 * sc, 96 * sc));
+                            r2.Render(v);
+                            string p2 = System.IO.Path.ChangeExtension(path, $".{++n}.png");
+                            r2.Save(p2);
+                            Console.WriteLine($"screenshot: {p2} ({sz.Width}x{sz.Height})");
                         }
                     }
                     catch (Exception ex) { Console.Error.WriteLine("screenshot failed: " + ex); }
