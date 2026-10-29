@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AmpTray.Avalonia.SettingsWindow"
+        Title="AmpTray Settings"
+        Width="640" Height="640"
+        SystemDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="{StaticResource DisplayFont}"
+        FontSize="13"
+        Foreground="{DynamicResource TextPrimary}">
+    <Border CornerRadius="12" Background="{DynamicResource PanelSolidBrush}"
+            BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1">
+        <Grid RowDefinitions="44,*" ColumnDefinitions="160,*">
+            <!-- Title bar -->
+            <Grid Name="TitleBar" Grid.ColumnSpan="2" Background="Transparent">
+                <TextBlock Name="TitleText" FontSize="14" FontWeight="SemiBold" Margin="18,0,0,0" VerticalAlignment="Center" />
+                <Button Name="CloseButton" Classes="IconButton" Content="✕" FontSize="11"
+                        Width="32" Height="28" HorizontalAlignment="Right" Margin="0,0,8,0" />
+            </Grid>
+
+            <!-- Navigation -->
+            <StackPanel Name="Nav" Grid.Row="1" Margin="10,4,6,12" />
+
+            <!-- Page -->
+            <ScrollViewer Name="PageScroll" Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="6,0,8,12">
+                <StackPanel Name="Page" Margin="12,4,16,8" />
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</Window>

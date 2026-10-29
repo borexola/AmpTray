@@ -33,6 +33,16 @@ public static class AppTheme
         var res = Application.Current!.Resources;
         foreach (var (key, argb) in Derive(t, PanelAlpha))
             res[key] = new ImmutableSolidColorBrush(Color.FromUInt32(argb));
+
+        // Fluent's own controls (slider, colour picker, text selection) follow the theme accent too.
+        var accent = Parse(t.Accent, Colors.LimeGreen);
+        res["SystemAccentColor"] = accent;
+        res["SystemAccentColorDark1"] = Lerp(accent, Colors.Black, 0.15);
+        res["SystemAccentColorDark2"] = Lerp(accent, Colors.Black, 0.30);
+        res["SystemAccentColorDark3"] = Lerp(accent, Colors.Black, 0.45);
+        res["SystemAccentColorLight1"] = Lerp(accent, Colors.White, 0.15);
+        res["SystemAccentColorLight2"] = Lerp(accent, Colors.White, 0.30);
+        res["SystemAccentColorLight3"] = Lerp(accent, Colors.White, 0.45);
     }
 
     /// <summary>Re-tints the panel background with a new alpha; the current theme colour is kept.</summary>

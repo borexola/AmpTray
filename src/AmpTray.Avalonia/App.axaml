@@ -6,6 +6,7 @@
         <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
         <StyleInclude Source="avares://amptray/Styles/Widget.axaml" />
+        <StyleInclude Source="avares://amptray/Styles/Settings.axaml" />
     </Application.Styles>
     <Application.Resources>
         <!-- Defaults only (the Graphite preset); Theme.Apply replaces these at startup and on every theme change. -->
