@@ -1,18 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using AmpTray.Platform;
 
-namespace AmpTray.Monitor;
+namespace AmpTray.Linux;
 
 /// <summary>
-/// Linux implementation of the OS services the core needs. Meant to run as root under systemd:
-/// serial ports are found through sysfs, power-off goes through systemctl (or shutdown/poweroff).
-/// There is no shared device lock (no other Linux tool uses one) and no frame counter.
+/// Linux implementation of the OS services the core needs, for the root service and the desktop
+/// app alike: serial ports are found through sysfs, the device is shared through a flock lock,
+/// power-off goes through systemctl (or shutdown/poweroff). There is no frame counter.
 /// </summary>
 public sealed class LinuxPlatform : IPlatform
 {
@@ -22,9 +21,29 @@ public sealed class LinuxPlatform : IPlatform
     public IReadOnlyCollection<string> FindUsbSerialPorts(ushort vendorId, ushort productId) =>
         UsbSerial.Find("/sys/class/tty", "/dev", vendorId, productId);
 
+    /// <summary>
+    /// The flock lock on /run/amptray/device.lock. The root service creates the file when it is
+    /// missing (install.sh normally does, through systemd-tmpfiles). A user process without the
+    /// file only has a problem worth reporting when a service exists to share the device with.
+    /// </summary>
     public IDeviceLock? OpenDeviceLock(out string? problem)
     {
-        problem = null;
+        if (!OperatingSystem.IsLinux())
+        {
+            problem = null;
+            return null;
+        }
+
+        var shared = FlockDeviceLock.TryOpen(FlockDeviceLock.DefaultPath, out problem);
+        if (shared != null) return shared;
+
+        if (Environment.IsPrivilegedProcess && FlockDeviceLock.TryCreate(FlockDeviceLock.DefaultPath))
+        {
+            shared = FlockDeviceLock.TryOpen(FlockDeviceLock.DefaultPath, out problem);
+            if (shared != null) return shared;
+        }
+
+        if (!SystemdService.IsInstalled()) problem = null;
         return null;
     }
 
@@ -160,57 +179,4 @@ public sealed class LinuxPlatform : IPlatform
             // Nobody to tell.
         }
     }
-}
-
-/// <summary>Finds USB serial ports by vendor and product ID through sysfs.</summary>
-internal static class UsbSerial
-{
-    /// <summary>
-    /// Every /sys/class/tty/ttyACM* and ttyUSB* entry links to its device under /sys/devices; the
-    /// "device" link inside points at the USB interface, whose parent (the USB device) carries
-    /// idVendor and idProduct. The result uses the names SerialPort.GetPortNames() reports (/dev/ttyACM0).
-    /// </summary>
-    internal static IReadOnlyCollection<string> Find(string sysClassTty, string devDir, ushort vendorId, ushort productId)
-    {
-        var found = new List<string>();
-        IEnumerable<string> entries;
-        try { entries = Directory.EnumerateFileSystemEntries(sysClassTty); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return found; }
-
-        foreach (var entry in entries)
-        {
-            string name = Path.GetFileName(entry);
-            if (!name.StartsWith("ttyACM", StringComparison.Ordinal) && !name.StartsWith("ttyUSB", StringComparison.Ordinal)) continue;
-            try
-            {
-                // Resolve the class link first, then the device link: a relative link is relative to its
-                // real directory, and .NET resolves it lexically against the path it was given.
-                string? dir = RealPath(entry);
-                if (dir != null) dir = RealPath(Path.Combine(dir, "device"));
-                for (int up = 0; dir != null && up < 4; up++, dir = Path.GetDirectoryName(dir))
-                {
-                    string v = Path.Combine(dir, "idVendor"), p = Path.Combine(dir, "idProduct");
-                    if (!File.Exists(v) || !File.Exists(p)) continue;
-                    if (ReadHex(v) == vendorId && ReadHex(p) == productId) found.Add(Path.Combine(devDir, name));
-                    break;
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // Device went away mid-scan.
-            }
-        }
-        return found;
-    }
-
-    private static string? RealPath(string path)
-    {
-        var info = new DirectoryInfo(path);
-        if (!info.Exists) return null;
-        if (info.LinkTarget == null) return info.FullName;
-        return (info.ResolveLinkTarget(returnFinalTarget: true) ?? info).FullName;
-    }
-
-    private static ushort? ReadHex(string file) =>
-        ushort.TryParse(File.ReadAllText(file).Trim(), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var v) ? v : null;
 }

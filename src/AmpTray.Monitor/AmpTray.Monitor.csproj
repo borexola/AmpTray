@@ -3,7 +3,7 @@
   <!--
     amptray-monitor: the headless monitor (device and GPU polling, CSV logging, auto-shutdown rules)
     as a console program for Linux, run by systemd. It is the same BackgroundMonitor the Windows
-    service hosts; the Linux-specific pieces (USB port lookup, power-off) live in LinuxPlatform.
+    service hosts; the Linux-specific pieces (USB port lookup, device lock, power-off) live in AmpTray.Linux.
     build/build-linux.sh publishes it self-contained, single-file, per architecture.
   -->
   <PropertyGroup>
@@ -44,10 +44,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AmpTray.Core\AmpTray.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <InternalsVisibleTo Include="AmpTray.Core.Tests" />
+    <ProjectReference Include="..\AmpTray.Linux\AmpTray.Linux.csproj" />
   </ItemGroup>
 
 </Project>

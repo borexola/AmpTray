@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using AmpTray.Device;
 using AmpTray.Gpu;
+using AmpTray.Linux;
 using AmpTray.Logging;
 using AmpTray.Platform;
 using AmpTray.Service;

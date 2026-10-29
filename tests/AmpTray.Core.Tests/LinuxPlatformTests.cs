@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using AmpTray.Monitor;
+using AmpTray.Linux;
 using Xunit;
 
 namespace AmpTray.Tests;
