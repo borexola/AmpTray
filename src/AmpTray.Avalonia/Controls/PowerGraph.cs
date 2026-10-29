@@ -36,10 +36,7 @@ public sealed class PowerGraph : Control
         PointerExited += (_, _) => { _hoverX = null; InvalidateVisual(); };
     }
 
-    public static string FormatSpan(double seconds) =>
-        seconds >= 3600 ? Loc.F("{0} h", (seconds / 3600).ToString("0.#"))
-        : seconds >= 60 ? Loc.F("{0} min", (seconds / 60).ToString("0"))
-        : Loc.F("{0} s", seconds.ToString("0"));
+    public static string FormatSpan(double seconds) => AmpTray.Ui.Readouts.FormatSpan(seconds);
 
     public override void Render(DrawingContext dc)
     {

@@ -17,18 +17,13 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AmpTray.Device;
+using AmpTray.Ui;
 
 namespace AmpTray.Avalonia;
 
 /// <summary>The floating widget, a 1:1 port of the WPF WidgetWindow. The controller (App) feeds it samples.</summary>
 public partial class WidgetWindow : Window
 {
-    // 12V-2x6 terminals are rated 9.2 A each; warn a bit before that.
-    public const double PinWarnA = 8.0;
-    public const double PinCritA = 9.2;
-    public const double TempWarnC = 65;
-    public const double TempCritC = 80;
-
     private const double CompactWidth = 292;
     private const double ExpandedWidth = 440;
     private static readonly string[] TempLabels = { "IN", "OUT", "TS1", "TS2" };
@@ -566,28 +561,12 @@ public partial class WidgetWindow : Window
         }
     }
 
-    public static string OverallLevel(SensorSnapshot s)
-    {
-        string wire = WireLevel(s.MaxPinCurrentA, WireLimitA(s));
-        if (s.HasActiveFault || wire == "CritBrush" || s.MaxTempC >= TempCritC) return "CritBrush";
-        if (s.HasLoggedFault || wire == "WarnBrush" || s.MaxTempC >= TempWarnC) return "WarnBrush";
-        return "OkBrush";
-    }
-
-    /// <summary>
-    /// Current one wire may carry: the cable rating spread over six 12 V wires
-    /// (600 W → 8.33 A, 450 W → 6.25 A, 300 W → 4.17 A, 150 W → 2.08 A), never above the 9.2 A pin rating.
-    /// </summary>
-    public static double WireLimitA(SensorSnapshot s) =>
-        s.CableRatingW > 0 ? Math.Min(PinCritA, s.CableRatingW / 12.0 / SensorSnapshot.PinCount) : PinCritA;
-
-    /// <summary>Amber from the wire's cable allowance (or 8 A, whichever is lower), red at the 9.2 A pin rating.</summary>
-    public static string WireLevel(double amps, double limitA) =>
-        amps >= PinCritA ? "CritBrush" : amps >= Math.Min(PinWarnA, limitA) ? "WarnBrush" : "OkBrush";
-
-    private static string? TempLevel(double c) => c >= TempCritC ? "CritBrush" : c >= TempWarnC ? "WarnBrush" : null;
-
-    private static string FormatEnergy(double wh) => wh >= 1000 ? $"{wh / 1000:0.00} kWh" : $"{wh:0.0} Wh";
+    // Thresholds and level keys are shared with the tray icon and the Windows widget (AmpTray.Ui.Levels).
+    public static string OverallLevel(SensorSnapshot s) => Levels.OverallLevel(s);
+    public static double WireLimitA(SensorSnapshot s) => Levels.WireLimitA(s);
+    public static string WireLevel(double amps, double limitA) => Levels.WireLevel(amps, limitA);
+    private static string? TempLevel(double c) => Levels.TempLevel(c);
+    private static string FormatEnergy(double wh) => Readouts.FormatEnergy(wh);
 
     // ===== Layout construction =====
     private sealed class PinRow
