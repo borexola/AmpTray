@@ -13,3 +13,6 @@ publish/
 *.suo
 *.swp
 *.DotSettings.user
+
+# Claude Code session memory (local notes, never committed)
+.claude/memory/
