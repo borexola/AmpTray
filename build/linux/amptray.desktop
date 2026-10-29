@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=AmpTray
+GenericName=WireView Pro II power monitor
+Comment=Live power, current and temperature of the 12V-2x6 cable, with NVIDIA GPU stats
+Exec=/opt/amptray/amptray
+Icon=amptray
+Terminal=false
+Categories=Utility;System;
+Keywords=WireView;power;GPU;12VHPWR;
+StartupWMClass=amptray

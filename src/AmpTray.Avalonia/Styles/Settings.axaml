@@ -1,0 +1,171 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Building blocks of the settings window, named as in the WPF SettingsWindow.xaml. -->
+
+    <!-- Toggle switch -->
+    <Style Selector="CheckBox.Switch">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Margin" Value="0,5,0,5" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Grid Background="Transparent" ColumnDefinitions="*,Auto">
+                    <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
+                                      VerticalAlignment="Center" Margin="0,0,16,0" />
+                    <Border Name="Track" Grid.Column="1" Width="40" Height="22" CornerRadius="11"
+                            Background="{DynamicResource TrackBrush}" VerticalAlignment="Center">
+                        <Ellipse Name="Knob" Width="14" Height="14" Margin="4,0" HorizontalAlignment="Left"
+                                 Fill="{DynamicResource TextSecondary}" />
+                    </Border>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="CheckBox.Switch:checked /template/ Border#Track">
+        <Setter Property="Background" Value="{DynamicResource OkBrush}" />
+    </Style>
+    <Style Selector="CheckBox.Switch:checked /template/ Ellipse#Knob">
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="Fill" Value="{DynamicResource PanelSolidBrush}" />
+    </Style>
+
+    <!-- Segmented option (radio or toggle) -->
+    <Style Selector="RadioButton.Segment, ToggleButton.Segment">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" Background="{DynamicResource TrackBrush}" CornerRadius="6"
+                        Padding="11,4,11,5" Margin="0,0,4,4">
+                    <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="RadioButton.Segment:pointerover, ToggleButton.Segment:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+    <Style Selector="RadioButton.Segment:checked /template/ Border#Bd, ToggleButton.Segment:checked /template/ Border#Bd">
+        <Setter Property="Background" Value="{DynamicResource OkBrush}" />
+    </Style>
+    <Style Selector="RadioButton.Segment:checked, ToggleButton.Segment:checked">
+        <Setter Property="Foreground" Value="{DynamicResource PanelSolidBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <!-- Fluent sets the presenter's own foreground per state, which would win over the setters above. -->
+    <Style Selector="RadioButton.Segment /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.Segment /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+    <Style Selector="RadioButton.Segment:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.Segment:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+    <Style Selector="RadioButton.Segment:checked /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.Segment:checked /template/ ContentPresenter#PART_ContentPresenter, RadioButton.Segment:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.Segment:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource PanelSolidBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- Left navigation item -->
+    <Style Selector="RadioButton.NavItem">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Grid Margin="0,1">
+                    <Border Name="Bd" Background="Transparent" CornerRadius="6" Padding="14,8">
+                        <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" />
+                    </Border>
+                    <Border Name="Bar" Width="3" Height="16" CornerRadius="1.5" HorizontalAlignment="Left"
+                            Background="{DynamicResource OkBrush}" IsVisible="False" />
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="RadioButton.NavItem:pointerover /template/ Border#Bd">
+        <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+    </Style>
+    <Style Selector="RadioButton.NavItem:checked /template/ Border#Bd">
+        <Setter Property="Background" Value="{DynamicResource HoverBrush}" />
+    </Style>
+    <Style Selector="RadioButton.NavItem:checked /template/ Border#Bar">
+        <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="RadioButton.NavItem:checked">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- Theme preset card -->
+    <Style Selector="RadioButton.ThemeCard">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Bd" BorderThickness="2" BorderBrush="Transparent" CornerRadius="10" Margin="0,0,8,8">
+                    <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="RadioButton.ThemeCard:pointerover /template/ Border#Bd">
+        <Setter Property="BorderBrush" Value="{DynamicResource TrackBrush}" />
+    </Style>
+    <Style Selector="RadioButton.ThemeCard:checked /template/ Border#Bd">
+        <Setter Property="BorderBrush" Value="{DynamicResource OkBrush}" />
+    </Style>
+
+    <!-- Text field: Fluent's template in the panel colours -->
+    <Style Selector="TextBox.Field">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="Background" Value="{DynamicResource TrackBrush}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox.Field:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource TrackBrush}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="TextBox.Field:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource TrackBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource OkBrush}" />
+    </Style>
+
+    <!-- Log rows: not selectable, no highlight, just padding -->
+    <Style Selector="ListBox.Log">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ListBox.Log ListBoxItem">
+        <Setter Property="Padding" Value="4,2,4,2" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Focusable" Value="False" />
+    </Style>
+    <Style Selector="ListBox.Log ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox.Log ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox.Log ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+</Styles>

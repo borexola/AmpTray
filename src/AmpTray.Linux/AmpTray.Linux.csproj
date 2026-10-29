@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Linux side of AmpTray, shared by the headless monitor (amptray-monitor) and the desktop app
+    (amptray): LinuxPlatform (sysfs port lookup, flock device lock, systemctl power-off), the
+    systemd and XDG autostart helpers and the single-instance lock. Plain net10.0, no UI.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>AmpTray.Linux</AssemblyName>
+    <RootNamespace>AmpTray.Linux</RootNamespace>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>AmpTray for WireView Pro II</Product>
+    <Authors>borexola</Authors>
+    <Company>borexola</Company>
+    <Copyright>Copyright © borexola</Copyright>
+    <RepositoryUrl>https://github.com/borexola/AmpTray</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AmpTray.Core\AmpTray.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AmpTray.Core.Tests" />
+  </ItemGroup>
+
+</Project>

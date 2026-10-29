@@ -15,10 +15,10 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
 jobs:
-  # Every push, pull request and tag runs the unit tests first. The packaging job below
-  # depends on this one, so a release can only be published when the tests pass.
+  # Every push, pull request and tag runs the unit tests first, on both platforms. The packaging
+  # job below depends on them, so a release can only be published when the tests pass.
   test:
-    name: Unit tests
+    name: Windows tests
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -27,21 +27,70 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Run tests
+      - name: Run tests (core and app)
         shell: pwsh
-        run: dotnet test tests/AmpTray.Tests/AmpTray.Tests.csproj -c Release --nologo --logger "trx;LogFileName=AmpTray.Tests.trx" --results-directory artifacts/test-results
+        run: dotnet test AmpTray.slnx -c Release --nologo --logger trx --results-directory artifacts/test-results
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: test-results
+          name: test-results-windows
           path: artifacts/test-results/*.trx
+          if-no-files-found: error
+
+  # The core, the service and the Avalonia widget on Linux: tests, then the self-contained tarballs
+  # (amptray-monitor and amptray for linux-x64 and linux-arm64, with install.sh, the systemd unit,
+  # the udev rule, the tmpfiles entry and the desktop entry).
+  linux:
+    name: Linux tests and tarballs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run core tests
+        run: dotnet test tests/AmpTray.Core.Tests/AmpTray.Core.Tests.csproj -c Release --nologo --logger trx --results-directory artifacts/test-results
+
+      - name: Build the Linux programs
+        run: |
+          dotnet build src/AmpTray.Monitor/AmpTray.Monitor.csproj -c Release --nologo
+          dotnet build src/AmpTray.Avalonia/AmpTray.Avalonia.csproj -c Release --nologo
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-linux
+          path: artifacts/test-results/*.trx
+          if-no-files-found: error
+
+      - name: Work out the version
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            v="${GITHUB_REF#refs/tags/v}"
+          else
+            v="0.0.1-ci.${{ github.run_number }}"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Version: $v"
+
+      - name: Build tarballs (linux-x64, linux-arm64)
+        run: ./build/build-linux.sh "${{ steps.ver.outputs.version }}"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: AmpTray-${{ steps.ver.outputs.version }}-linux
+          path: artifacts/out/*.tar.gz
           if-no-files-found: error
 
   build:
     name: Build and release
-    needs: test
+    needs: [test, linux]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -72,6 +121,14 @@ jobs:
           name: AmpTray-${{ steps.ver.outputs.version }}
           path: artifacts/out/*
           if-no-files-found: error
+
+      # The Linux tarballs join the MSI and the zip in the release.
+      - name: Fetch the Linux tarballs
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/download-artifact@v6
+        with:
+          name: AmpTray-${{ steps.ver.outputs.version }}-linux
+          path: artifacts/out
 
       # The release text is the annotated tag's message: short and written by hand.
       - name: Release notes from the tag

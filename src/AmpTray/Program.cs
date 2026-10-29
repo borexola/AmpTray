@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.ServiceProcess;
+using AmpTray.Platform;
 using AmpTray.Service;
 
 namespace AmpTray;
@@ -19,6 +20,9 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // Before anything touches the device, the shutdown rules or the FPS counter.
+        PlatformServices.Current = new WindowsPlatform();
+
         if (Has(args, "/service"))
         {
             ServiceBase.Run(new AmpTrayService());

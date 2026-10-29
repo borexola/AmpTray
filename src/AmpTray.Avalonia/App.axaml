@@ -1,0 +1,31 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AmpTray.Avalonia.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
+        <StyleInclude Source="avares://amptray/Styles/Widget.axaml" />
+        <StyleInclude Source="avares://amptray/Styles/Settings.axaml" />
+    </Application.Styles>
+    <Application.Resources>
+        <!-- Defaults only (the Graphite preset); Theme.Apply replaces these at startup and on every theme change. -->
+        <SolidColorBrush x:Key="PanelBrush" Color="#FC14161B" />
+        <SolidColorBrush x:Key="PanelSolidBrush" Color="#14161B" />
+        <SolidColorBrush x:Key="PanelFadeBrush" Color="#14161B" />
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#26FFFFFF" />
+        <SolidColorBrush x:Key="DividerBrush" Color="#14FFFFFF" />
+        <SolidColorBrush x:Key="TrackBrush" Color="#1FFFFFFF" />
+        <SolidColorBrush x:Key="HoverBrush" Color="#14FFFFFF" />
+        <SolidColorBrush x:Key="TextPrimary" Color="#F2F4F7" />
+        <SolidColorBrush x:Key="TextSecondary" Color="#8B93A1" />
+        <SolidColorBrush x:Key="TextMuted" Color="#525A66" />
+        <SolidColorBrush x:Key="OkBrush" Color="#3DD6A0" />
+        <SolidColorBrush x:Key="WarnBrush" Color="#F5B83D" />
+        <SolidColorBrush x:Key="CritBrush" Color="#F0524F" />
+        <SolidColorBrush x:Key="IdleBrush" Color="#5A6270" />
+        <SolidColorBrush x:Key="GraphBrush" Color="#4CC2FF" />
+
+        <FontFamily x:Key="DisplayFont">fonts:Inter#Inter</FontFamily>
+    </Application.Resources>
+</Application>

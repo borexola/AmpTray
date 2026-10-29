@@ -1,0 +1,180 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:AmpTray.Avalonia.Controls"
+        x:Class="AmpTray.Avalonia.WidgetWindow"
+        Title="AmpTray"
+        SystemDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        CanResize="False"
+        SizeToContent="WidthAndHeight"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Focusable="False"
+        FontFamily="{StaticResource DisplayFont}"
+        FontSize="12.5"
+        Foreground="{DynamicResource TextPrimary}"
+        TextElement.FontFeatures="+tnum">
+
+    <!-- All visible text is assigned in code (ApplyLanguage) so it can be translated. The window is
+         transparent; only the panel border carries the (fadeable) background, like the WPF widget. -->
+    <Grid>
+        <Border Name="Panel" Width="292" CornerRadius="12"
+                Background="{DynamicResource PanelFadeBrush}"
+                BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1">
+            <Grid Name="Host">
+                <StackPanel Name="Body" Margin="14,12,14,12">
+                    <!-- GPU temperatures (NVIDIA); shown whenever an NVIDIA GPU is present -->
+                    <Grid Name="GpuStrip" IsVisible="False" Margin="0,0,0,10" ColumnDefinitions="*,Auto">
+                        <TextBlock Name="GpuName" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                        <StackPanel Name="TempSlot" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <c:ArcGauge Name="GpuGauge" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="GPU" FontSize="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <TextBlock Name="GpuTempText" FontSize="13.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Name="GpuMemTempLabel" Text="MEM" FontSize="10" Foreground="{DynamicResource TextMuted}"
+                                       VerticalAlignment="Center" Margin="10,0,4,0" />
+                            <TextBlock Name="GpuMemTempText" FontSize="13.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+                    <Border Name="GpuStripDivider" Classes="Divider" Margin="0,0,0,10" IsVisible="False" />
+
+                    <!-- Header -->
+                    <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse Name="StatusDot" Width="8" Height="8" Margin="0,1,8,0" Fill="{DynamicResource IdleBrush}" />
+                            <TextBlock Text="WIREVIEW PRO II" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+                            <Border Name="RecBadge" IsVisible="False" Margin="8,0,0,0" Padding="5,0,5,1"
+                                    CornerRadius="4" VerticalAlignment="Center" Background="{DynamicResource CritBrush}">
+                                <TextBlock Text="REC" FontSize="9" FontWeight="Bold" Foreground="White" />
+                            </Border>
+                            <Border Name="ArmedBadge" IsVisible="False" Margin="6,0,0,0" Padding="5,0,5,1"
+                                    CornerRadius="4" VerticalAlignment="Center" BorderThickness="1"
+                                    BorderBrush="{DynamicResource WarnBrush}">
+                                <TextBlock Name="ArmedText" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource WarnBrush}" />
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel Name="HeaderButtons" Grid.Column="1" Orientation="Horizontal" IsVisible="False"
+                                    VerticalAlignment="Top" Margin="0,0,6,0">
+                            <Button Name="ExpandButton" Classes="IconButton" Content="⤢" FontSize="13" />
+                            <Button Name="SettingsButton" Classes="IconButton" Content="⚙" FontSize="13" />
+                        </StackPanel>
+
+                        <TextBlock Name="TotalPower" Grid.Column="2" Text="n/a" FontSize="22" FontWeight="SemiBold"
+                                   HorizontalAlignment="Right" />
+
+                        <TextBlock Name="StatusText" Grid.Row="1" Grid.ColumnSpan="2" FontSize="11"
+                                   Foreground="{DynamicResource TextMuted}" VerticalAlignment="Top" />
+                        <TextBlock Name="TotalCurrent" Grid.Row="1" Grid.Column="2" Text="" FontSize="11.5"
+                                   Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right" Margin="0,-2,0,0" />
+                    </Grid>
+
+                    <!-- Fault alert banner -->
+                    <Border Name="AlertBanner" IsVisible="False" Margin="0,10,0,0" Padding="10,7,7,7"
+                            CornerRadius="8" Background="{DynamicResource CritBrush}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Name="AlertText" Foreground="White" FontWeight="Bold" FontSize="12"
+                                       TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <Button Name="AckButton" Grid.Column="1" Classes="PillButton" Margin="8,0,0,0"
+                                    Background="#33FFFFFF" Foreground="White" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Auto-shutdown pending banner -->
+                    <Border Name="ShutdownBanner" IsVisible="False" Margin="0,10,0,0" Padding="10,7,7,7"
+                            CornerRadius="8" Background="{DynamicResource WarnBrush}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Name="ShutdownText" Foreground="#1A1A1A" FontWeight="SemiBold" FontSize="11.5"
+                                       TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <Button Name="ShutdownCancelButton" Grid.Column="1" Classes="PillButton" Margin="8,0,0,0"
+                                    Background="#26000000" Foreground="#1A1A1A" />
+                        </Grid>
+                    </Border>
+
+                    <!-- New release available (dismissable until next launch) -->
+                    <Border Name="UpdateBanner" IsVisible="False" Margin="0,10,0,0" Padding="10,7,4,7"
+                            CornerRadius="8" Background="{DynamicResource GraphBrush}">
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <TextBlock Name="UpdateText" Foreground="#0B1620" FontWeight="SemiBold" FontSize="11.5"
+                                       TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <Button Name="UpdateDownloadButton" Grid.Column="1" Classes="PillButton" Margin="8,0,0,0"
+                                    Background="#26000000" Foreground="#0B1620" />
+                            <Button Name="UpdateDismissButton" Grid.Column="2" Classes="IconButton" Content="✕"
+                                    FontSize="10" Foreground="#0B1620" Margin="2,0,0,0" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Wires -->
+                    <StackPanel Name="WiresSection">
+                        <Border Classes="Divider" />
+                        <Grid>
+                            <TextBlock Name="WiresLabel" Classes="SectionLabel" />
+                            <TextBlock Name="ScaleText" HorizontalAlignment="Right" Classes="SectionLabel"
+                                       Foreground="{DynamicResource TextMuted}" FontWeight="Normal" />
+                        </Grid>
+                        <Grid Name="PinHeader" IsVisible="False" Margin="0,0,0,2" />
+                        <StackPanel Name="PinRows" />
+                        <TextBlock Name="SpreadText" FontSize="10.5" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right" />
+                    </StackPanel>
+
+                    <!-- Temperatures -->
+                    <StackPanel Name="TempsSection">
+                        <Border Classes="Divider" />
+                        <TextBlock Name="TempsLabel" Classes="SectionLabel" />
+                        <UniformGrid Name="TempGrid" Columns="4" Rows="1" />
+                    </StackPanel>
+
+                    <!-- GPU -->
+                    <StackPanel Name="GpuSection">
+                        <Border Classes="Divider" />
+                        <Grid>
+                            <TextBlock Name="GpuLabel" Classes="SectionLabel" />
+                            <TextBlock Name="GpuClockText" HorizontalAlignment="Right" Classes="SectionLabel"
+                                       Foreground="{DynamicResource TextMuted}" FontWeight="Normal" />
+                        </Grid>
+                        <TextBlock Name="GpuNone" FontSize="11" Foreground="{DynamicResource TextMuted}" />
+                        <StackPanel Name="GpuBars" />
+                        <WrapPanel Name="GpuThrottle" Margin="0,4,0,0" />
+                        <Grid Name="GpuDetails" IsVisible="False" Margin="0,8,0,0" />
+                        <TextBlock Name="GpuPowerPath" IsVisible="False" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondary}" />
+                        <TextBlock Name="GpuSession" IsVisible="False" FontSize="11" Margin="0,3,0,0"
+                                   Foreground="{DynamicResource TextMuted}" />
+                    </StackPanel>
+
+                    <!-- Power graph -->
+                    <StackPanel Name="GraphSection">
+                        <Border Classes="Divider" />
+                        <Grid>
+                            <TextBlock Name="PowerLabel" Classes="SectionLabel" />
+                            <TextBlock Name="GraphStatsText" HorizontalAlignment="Right" Classes="SectionLabel"
+                                       Foreground="{DynamicResource TextMuted}" FontWeight="Normal" />
+                        </Grid>
+                        <c:PowerGraph Name="Graph" Height="64" />
+                        <Grid Name="SessionRow" IsVisible="False" Margin="0,8,0,0">
+                            <TextBlock Name="SessionText" FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,0" />
+                            <Button Name="ResetStatsButton" Classes="PillButton" HorizontalAlignment="Right" />
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Faults -->
+                    <StackPanel Name="FaultsSection">
+                        <Border Classes="Divider" />
+                        <TextBlock Name="FaultsLabel" Classes="SectionLabel" />
+                        <WrapPanel Name="FaultPanel" />
+                        <Grid Name="FaultTable" IsVisible="False" />
+                        <StackPanel Name="FaultEvents" IsVisible="False" Margin="0,8,0,0" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Red pulse layer for fault alerts -->
+                <Border Name="FlashLayer" CornerRadius="12" Background="{DynamicResource CritBrush}"
+                        Opacity="0" IsHitTestVisible="False" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,18 @@
+[Unit]
+Description=AmpTray monitor for WireView Pro II (CSV logging, auto-shutdown rules)
+Documentation=https://github.com/borexola/AmpTray
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/opt/amptray/amptray-monitor
+WorkingDirectory=/var/lib/amptray
+Restart=on-failure
+RestartSec=5
+# Files under /var/lib/amptray stay writable for the amptray group (the desktop app pushes settings there).
+UMask=0002
+# The single-file binary unpacks its native libraries here on first start.
+Environment=DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/lib/amptray/.net
+
+[Install]
+WantedBy=multi-user.target
