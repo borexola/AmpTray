@@ -1,6 +1,6 @@
 # AmpTray for WireView Pro II
 
-An unofficial, read-only desktop widget and tray icon for the Thermal Grizzly WireView Pro II 12V-2x6 power meter, with NVIDIA GPU stats alongside. For Windows and Linux. Not affiliated with Thermal Grizzly or NVIDIA.
+An unofficial desktop widget and tray icon for the Thermal Grizzly WireView Pro II 12V-2x6 power meter, with NVIDIA GPU stats alongside. It is read-only unless you explicitly allow it to clear the device's faults. For Windows and Linux. Not affiliated with Thermal Grizzly or NVIDIA.
 
 <p align="center">  
   <img src="docs/widget-expanded.png" alt="Expanded view" />&nbsp;&nbsp;&nbsp;
@@ -19,7 +19,7 @@ Also: CSV logging, a full-screen alarm on faults, auto-shutdown on your own thre
 
 ## The device is never written to
 
-The widget only identifies the device (raise RTS, read its welcome string) and reads the sensor block (`0x04`). There is no code path for config, calibration, flash, screen, clear-fault or bootloader commands. The port is opened per read under a shared lock (the `Global\Access_USB_Sensors` mutex on Windows, so the official app and the widget can run together; `/run/amptray/device.lock` on Linux, shared by the widget and the service). GPU data comes from the driver's own NVML; only read calls are declared.
+The widget identifies the device (raise RTS, read its welcome string) and reads the sensor block (`0x04`). The one thing it can change on the device is the fault list, and only after you have allowed it in Settings (it is off by default): pressing **Clear** reads the device's settings (`0x05`, read only), sends the clear-faults request (`0x0E`) and then a redraw of the device's current screen (`0x0C 0xEF`), so the fault leaves its display too; nothing sends these on its own. There is no code path for writing config, calibration, flash, bootloader or any other screen command. The port is opened per read under a shared lock (the `Global\Access_USB_Sensors` mutex on Windows, so the official app and the widget can run together; `/run/amptray/device.lock` on Linux, shared by the widget and the service). GPU data comes from the driver's own NVML; only read calls are declared.
 
 ## Install
 
@@ -50,7 +50,7 @@ All are self-contained (no .NET install needed); the Windows builds need Windows
 
 ## Fault alerts
 
-On an active device fault every monitor gets a pulsing red frame (Windows), the widget flashes, a two-tone alarm loops and a desktop notification appears. Works with the widget hidden in the tray. Press **Acknowledge** to stop it; a different new fault alerts again. A fault marked **logged** is latched on the device and is cleared in the official app.
+On an active device fault every monitor gets a pulsing red frame (Windows), the widget flashes, a two-tone alarm loops and a desktop notification appears. Works with the widget hidden in the tray. Press **Acknowledge** to stop it; a different new fault alerts again. A fault marked **logged** is latched on the device: it stays there after its cause is gone, until the device is power-cycled or you clear it from the widget. Clearing is off by default: under Settings → Window → Device access, accept the risk and turn on **Allow clearing device faults**. From then on a **Clear** button appears in the Faults panel (and *Clear device faults* in the tray menu) whenever the device reports a fault. Clear resets the device's active and logged faults; one whose cause is still present is raised again at once. It never gets in the way of the device's own protection: while a fault that the device is set to power the PC off for (its soft or hard power action) is active, Clear sends nothing and tells you which fault that is. If the device's settings cannot be read, nothing is cleared either.
 
 ## Auto shutdown (off by default)
 
@@ -119,4 +119,4 @@ Settings → Logs shows what the widget and the background service have been doi
 
 ## Legal
 
-*WireView* and *Thermal Grizzly* are trademarks of Thermal Grizzly Holding GmbH; *NVIDIA* and *GeForce* are trademarks of NVIDIA Corporation, used only to identify the hardware this tool works with. Nothing from the official software or firmware is included; the two read-only requests were determined for interoperability and the code is original. Built with .NET (MIT), System.IO.Ports (MIT), Microsoft TraceEvent (MIT), Avalonia with SkiaSharp and HarfBuzzSharp (MIT) and the Inter font (OFL) for the Linux widget, WiX Toolset (MS-RL, build time only) and GitHub Actions; the Windows build ships Intel PresentMon (MIT, see `PresentMon-LICENSE.txt`). Licensed under the MIT License.
+*WireView* and *Thermal Grizzly* are trademarks of Thermal Grizzly Holding GmbH; *NVIDIA* and *GeForce* are trademarks of NVIDIA Corporation, used only to identify the hardware this tool works with. Nothing from the official software or firmware is included; the requests it sends were determined for interoperability and the code is original. Built with .NET (MIT), System.IO.Ports (MIT), Microsoft TraceEvent (MIT), Avalonia with SkiaSharp and HarfBuzzSharp (MIT) and the Inter font (OFL) for the Linux widget, WiX Toolset (MS-RL, build time only) and GitHub Actions; the Windows build ships Intel PresentMon (MIT, see `PresentMon-LICENSE.txt`). Licensed under the MIT License.

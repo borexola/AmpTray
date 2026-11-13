@@ -24,6 +24,10 @@
             </ControlTemplate>
         </Setter>
     </Style>
+    <!-- A switch that cannot be used yet (it waits for another one) is visibly dimmed. -->
+    <Style Selector="CheckBox.Switch:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
     <Style Selector="CheckBox.Switch:checked /template/ Border#Track">
         <Setter Property="Background" Value="{DynamicResource OkBrush}" />
     </Style>

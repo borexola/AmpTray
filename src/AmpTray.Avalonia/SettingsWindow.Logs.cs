@@ -293,7 +293,7 @@ public partial class SettingsWindow
         var sub = new TextBlock { Text = Loc.T("for WireView Pro II") + " · Linux", FontSize = 12.5, Margin = new Thickness(0, 0, 0, 6) };
         Ref(sub, TextBlock.ForegroundProperty, "TextSecondary");
         text.Children.Add(sub);
-        var desc = new TextBlock { Text = Loc.T("Unofficial, read-only desktop widget for the Thermal Grizzly WireView Pro II, with NVIDIA GPU stats."), FontSize = 11.5, TextWrapping = TextWrapping.Wrap };
+        var desc = new TextBlock { Text = Loc.T("Unofficial desktop widget for the Thermal Grizzly WireView Pro II, with NVIDIA GPU stats. Read-only unless you explicitly allow clearing device faults."), FontSize = 11.5, TextWrapping = TextWrapping.Wrap };
         Ref(desc, TextBlock.ForegroundProperty, "TextSecondary");
         text.Children.Add(desc);
         var legal = new TextBlock { Text = Loc.T("Not affiliated with or endorsed by Thermal Grizzly or NVIDIA."), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) };
@@ -370,7 +370,7 @@ public partial class SettingsWindow
         Link(Loc.T("Report a problem"), "https://github.com/" + UpdateChecker.Repo + "/issues");
         Link(Loc.T("MIT License"), "https://github.com/" + UpdateChecker.Repo + "/blob/main/LICENSE");
         Link(Loc.T("Open the settings and logs folder"), Settings.AppDataFolder);
-        Note(Loc.T("Open source under the MIT License. Device access is read-only, and nothing about this PC is sent anywhere apart from the update check."), bottom: 8);
+        Note(Loc.T("Open source under the MIT License. The widget only reads the device, apart from clearing its faults when you ask, and nothing about this PC is sent anywhere apart from the update check."), bottom: 8);
     }
 
     private void Link(string text, string target)

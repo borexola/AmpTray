@@ -65,6 +65,10 @@
                                 <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
                                 <Setter TargetName="Knob" Property="Fill" Value="{DynamicResource PanelSolidBrush}" />
                             </Trigger>
+                            <!-- A switch that cannot be used yet (it waits for another one) is visibly dimmed. -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>

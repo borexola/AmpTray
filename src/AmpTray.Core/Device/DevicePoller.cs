@@ -15,6 +15,7 @@ public sealed class DevicePoller : IDisposable
     private readonly Thread _thread;
     private volatile int _intervalMs;
     private volatile bool _rescan;
+    private volatile bool _clearFaults;
 
     /// <summary>Drop the current port and look for the device again right away (resume from sleep, USB reset).</summary>
     public void Reconnect()
@@ -24,7 +25,19 @@ public sealed class DevicePoller : IDisposable
         _wake.Set();
     }
 
-    /// <summary>Waits for the interval, cancellation or a Reconnect() request.</summary>
+    /// <summary>
+    /// Asks the device to clear its faults, unless one it is set to power the PC off for is active
+    /// (see <see cref="WireViewReader.ClearFaults"/>). Done on the polling thread before its next
+    /// read, so the following sample already shows the result. <see cref="ClearFaultsDone"/> reports
+    /// how it ended; a request made while the device is gone is reported as not sent.
+    /// </summary>
+    public void ClearFaults()
+    {
+        _clearFaults = true;
+        _wake.Set();
+    }
+
+    /// <summary>Waits for the interval, cancellation, or a Reconnect() or ClearFaults() request.</summary>
     private void Pause(int ms)
     {
         WaitHandle.WaitAny(new[] { _cts.Token.WaitHandle, _wake }, ms);
@@ -35,6 +48,9 @@ public sealed class DevicePoller : IDisposable
 
     /// <summary>Raised on the polling thread; argument is the COM port, or null when disconnected.</summary>
     public event Action<string?>? ConnectionChanged;
+
+    /// <summary>Raised on the polling thread after a ClearFaults() request, with how it ended.</summary>
+    public event Action<ClearFaultsResult>? ClearFaultsDone;
 
     public DevicePoller(int intervalMs)
     {
@@ -62,6 +78,12 @@ public sealed class DevicePoller : IDisposable
                 _rescan = false;
                 if (!_reader.TryConnect())
                 {
+                    if (_clearFaults)
+                    {
+                        // A request made for a device that has gone must not fire on a later one.
+                        _clearFaults = false;
+                        Raise(() => ClearFaultsDone?.Invoke(new(ClearFaultsOutcome.NotSent, 0)));
+                    }
                     Pause(RescanDelayMs);
                     continue;
                 }
@@ -70,6 +92,15 @@ public sealed class DevicePoller : IDisposable
                 int failures = 0;
                 while (!ct.IsCancellationRequested && failures < FailuresBeforeRescan && !_rescan)
                 {
+                    if (_clearFaults)
+                    {
+                        _clearFaults = false;
+                        var result = new ClearFaultsResult(ClearFaultsOutcome.NotSent, 0);
+                        try { result = _reader.ClearFaults(); }
+                        catch { /* unplugged or port grabbed; reported as not sent */ }
+                        Raise(() => ClearFaultsDone?.Invoke(result));
+                    }
+
                     SensorSnapshot? s = null;
                     try { s = _reader.ReadSensors(); }
                     catch { /* unplugged or port grabbed; counted below */ }

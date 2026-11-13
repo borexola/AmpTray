@@ -104,6 +104,107 @@ public class WireViewFrameTests
         shifted[^1] = good[0];
         Assert.False(WireViewReader.IsPlausible(shifted));
     }
+
+    // Faults the device powers the PC off for, as read from a real device: sensor over-temp,
+    // over-current, wire over-current and over-power (hard), none soft.
+    private const ushort FactoryPowerOff = 0x001E;
+    private const ushort Imbalance = 0x0020, OverCurrent = 0x0004;
+
+    [Fact]
+    public void A_fault_without_a_device_power_action_is_cleared_in_both_registers()
+    {
+        // Keep-masks (a set bit keeps that fault): CMD_CLEAR_FAULTS, status mask, log mask.
+        var frame = WireViewReader.BuildClearFrame(FactoryPowerOff, status: Imbalance, log: Imbalance, out ushort blockedBy);
+        Assert.Equal(new byte[] { 0x0E, 0x5E, 0xFF, 0x40, 0xFF }, frame);
+        Assert.Equal(0, blockedBy);
+    }
+
+    [Fact]
+    public void Nothing_is_sent_while_a_fault_the_device_powers_off_for_is_active()
+    {
+        // Not even for the other faults: the device may be counting down to its own shutdown.
+        ushort both = Imbalance | OverCurrent;
+        Assert.Null(WireViewReader.BuildClearFrame(FactoryPowerOff, status: both, log: both, out ushort blockedBy));
+        Assert.Equal(OverCurrent, blockedBy);
+        Assert.Null(WireViewReader.BuildClearFrame(FactoryPowerOff, status: OverCurrent, log: 0, out blockedBy));
+        Assert.Equal(OverCurrent, blockedBy);
+    }
+
+    [Fact]
+    public void Nothing_is_sent_when_there_is_no_fault()
+    {
+        Assert.Null(WireViewReader.BuildClearFrame(FactoryPowerOff, status: 0, log: 0, out ushort blockedBy));
+        Assert.Equal(0, blockedBy);
+    }
+
+    [Fact]
+    public void A_logged_power_off_fault_that_is_no_longer_active_is_history_and_is_cleared()
+    {
+        var frame = WireViewReader.BuildClearFrame(FactoryPowerOff, status: 0, log: OverCurrent, out ushort blockedBy);
+        Assert.NotNull(frame);
+        Assert.Equal(0, blockedBy);
+        ushort keepLog = (ushort)(frame![3] | frame[4] << 8);
+        Assert.Equal(0, OverCurrent & keepLog);
+    }
+
+    [Fact]
+    public void A_sent_frame_still_keeps_every_power_off_fault_and_no_mask_byte_is_a_command()
+    {
+        // Known opcodes of the device protocol; a mask byte must never be one of them.
+        byte[] opcodes = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0xF0, 0xF1, 0xF2 };
+        for (ushort powerOff = 0; powerOff <= 0x3F; powerOff++)
+        for (ushort status = 0; status <= 0x3F; status++)
+        {
+            var frame = WireViewReader.BuildClearFrame(powerOff, status, log: 0x3F, out ushort blockedBy);
+            Assert.Equal(status & powerOff, blockedBy);
+            Assert.Equal(blockedBy != 0, frame == null); // the log is never empty here, so only a block stops it
+            if (frame == null) continue;
+            Assert.Equal(0x0E, frame[0]);
+            ushort keepStatus = (ushort)(frame[1] | frame[2] << 8), keepLog = (ushort)(frame[3] | frame[4] << 8);
+            // One raised between our reading and the clear survives: the mask keeps them all.
+            Assert.Equal(powerOff, keepStatus & powerOff);
+            Assert.Equal(0, status & keepStatus & 0x3F); // every active fault in the reading is cleared
+            Assert.Equal(0, keepLog & 0x3F);
+            for (int i = 1; i < frame.Length; i++) Assert.DoesNotContain(frame[i], opcodes);
+        }
+    }
+
+    [Fact]
+    public void Power_off_faults_are_read_from_the_three_known_config_layouts_only()
+    {
+        static byte[] Config(byte version, int length, ushort soft, ushort hard)
+        {
+            var c = new byte[length];
+            c[2] = version;
+            c[50] = (byte)soft; c[51] = (byte)(soft >> 8);
+            c[52] = (byte)hard; c[53] = (byte)(hard >> 8);
+            return c;
+        }
+        Assert.Equal((ushort)0x001E, WireViewReader.ParsePowerOffFaults(Config(2, 96, 0x0000, 0x001E)));
+        Assert.Equal((ushort)0x0021, WireViewReader.ParsePowerOffFaults(Config(1, 74, 0x0020, 0x0001)));
+        Assert.Equal((ushort)0x0000, WireViewReader.ParsePowerOffFaults(Config(0, 72, 0, 0)));
+
+        // Anything that is not exactly a known layout is refused, so nothing is cleared on a guess.
+        Assert.Null(WireViewReader.ParsePowerOffFaults(Config(2, 95, 0, 0x001E)));   // short read
+        Assert.Null(WireViewReader.ParsePowerOffFaults(Config(2, 74, 0, 0x001E)));   // length of another version
+        Assert.Null(WireViewReader.ParsePowerOffFaults(Config(3, 96, 0, 0x001E)));   // unknown version
+        Assert.Null(WireViewReader.ParsePowerOffFaults(Config(2, 96, 0, 0x0040)));   // undefined fault bit
+        Assert.Null(WireViewReader.ParsePowerOffFaults(System.Array.Empty<byte>()));
+    }
+
+    [Fact]
+    public void The_only_screen_command_is_a_redraw_of_the_current_screen()
+    {
+        // CMD_SCREEN_CHANGE + SCREEN_GOTO_SAME: no screen switch, no pause of the display.
+        Assert.Equal(new byte[] { 0x0C, 0xEF }, WireViewReader.CmdRedrawScreen);
+    }
+
+    [Fact]
+    public void Clearing_faults_without_a_device_sends_nothing()
+    {
+        using var reader = new WireViewReader();
+        Assert.Equal(new ClearFaultsResult(ClearFaultsOutcome.NotSent, 0), reader.ClearFaults());
+    }
 }
 
 public class SensorSnapshotTests

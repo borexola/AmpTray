@@ -369,7 +369,27 @@ public partial class SettingsWindow : Window
         Segmented(Loc.T("Language"), languages.ToArray(), () => _s.Language, v => _s.Language = v);
 
         Header(Loc.T("Device access"), null);
-        Note(Loc.T("Read-only. The widget only identifies the device and reads its sensors; it never changes device settings, clears faults or touches firmware. It shares the port with the official WireView app."));
+        Note(Loc.T("The widget only identifies the device and reads its sensors; it never changes device settings or touches firmware. The one exception is clearing faults, which stays off unless you allow it below.") + " " +
+             Loc.T("It shares the port with the official WireView app."));
+
+        // Clearing faults is the only request that changes anything on the device: it needs the risk accepted first.
+        Note(Loc.T("Clearing sends the device a command that erases its active and logged faults and redraws its screen. A fault is the device telling you something was wrong with the cable or connector, and that record is gone once it is cleared, so check the cause first. AmpTray is unofficial software that Thermal Grizzly has not tested or endorsed: you send this command at your own risk."), bottom: 8);
+        Note(Loc.T("While a fault that the device itself is set to power the PC off for is active, Clear sends nothing, so it cannot hold off the device's own shutdown. To know which faults those are, it reads the device's settings each time you press it."), bottom: 8);
+        var accept = Switch(_s.ClearFaultsRiskAccepted, Labelled(Loc.T("I understand and accept this risk"), null));
+        var allow = Switch(_s.CanClearFaults, Labelled(Loc.T("Allow clearing device faults"),
+            Loc.T("Shows Clear in the Faults panel and in the tray menu while the device reports a fault.")));
+        allow.IsEnabled = _s.ClearFaultsRiskAccepted;
+        accept.Click += (_, _) =>
+        {
+            _s.ClearFaultsRiskAccepted = accept.IsChecked == true;
+            // Taking the acceptance back also switches clearing off.
+            if (!_s.ClearFaultsRiskAccepted) { _s.AllowClearFaults = false; allow.IsChecked = false; }
+            allow.IsEnabled = _s.ClearFaultsRiskAccepted;
+            Changed();
+        };
+        allow.Click += (_, _) => { _s.AllowClearFaults = allow.IsChecked == true; Changed(); };
+        Page.Children.Add(accept);
+        Page.Children.Add(allow);
     }
 
     // ===== Logs page =====
@@ -701,7 +721,7 @@ public partial class SettingsWindow : Window
         var sub = new TextBlock { Text = Loc.T("for WireView Pro II"), FontSize = 12.5, Margin = new Thickness(0, 0, 0, 6) };
         sub.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
         text.Children.Add(sub);
-        var desc = new TextBlock { Text = Loc.T("Unofficial, read-only desktop widget for the Thermal Grizzly WireView Pro II, with NVIDIA GPU stats."), FontSize = 11.5, TextWrapping = TextWrapping.Wrap };
+        var desc = new TextBlock { Text = Loc.T("Unofficial desktop widget for the Thermal Grizzly WireView Pro II, with NVIDIA GPU stats. Read-only unless you explicitly allow clearing device faults."), FontSize = 11.5, TextWrapping = TextWrapping.Wrap };
         desc.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
         text.Children.Add(desc);
         var legal = new TextBlock { Text = Loc.T("Not affiliated with or endorsed by Thermal Grizzly or NVIDIA."), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) };
@@ -775,7 +795,7 @@ public partial class SettingsWindow : Window
         Link(Loc.T("Report a problem"), "https://github.com/" + UpdateChecker.Repo + "/issues");
         Link(Loc.T("MIT License"), "https://github.com/" + UpdateChecker.Repo + "/blob/main/LICENSE");
         Link(Loc.T("Open the settings and logs folder"), Settings.AppDataFolder);
-        Note(Loc.T("Open source under the MIT License. Device access is read-only, and nothing about this PC is sent anywhere apart from the update check."), bottom: 8);
+        Note(Loc.T("Open source under the MIT License. The widget only reads the device, apart from clearing its faults when you ask, and nothing about this PC is sent anywhere apart from the update check."), bottom: 8);
     }
 
     private void Link(string text, string target)
@@ -848,6 +868,9 @@ public partial class SettingsWindow : Window
         }
         return sp;
     }
+
+    private CheckBox Switch(bool isChecked, object content) =>
+        new() { Style = Res("Switch"), IsChecked = isChecked, Content = content };
 
     private void Toggle(string label, string? description, Func<bool> get, Action<bool> set)
     {

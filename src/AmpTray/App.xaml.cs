@@ -37,7 +37,7 @@ public partial class App : System.Windows.Application, ISettingsHost
 
     private Forms.NotifyIcon? _tray;
     private Forms.ContextMenuStrip? _menu;
-    private Forms.ToolStripMenuItem? _showItem, _expandedItem, _topmostItem, _clickThroughItem, _logItem, _ackItem;
+    private Forms.ToolStripMenuItem? _showItem, _expandedItem, _topmostItem, _clickThroughItem, _logItem, _ackItem, _clearFaultsItem;
     private Forms.ToolStripMenuItem? _wiresItem, _tempsItem, _graphItem, _faultsItem, _gpuItem, _themeMenu;
     private Forms.ToolStripMenuItem? _panelsMenu, _openLogItem, _settingsItem, _exitItem, _updateItem;
     private UpdateInfo? _update;
@@ -48,6 +48,7 @@ public partial class App : System.Windows.Application, ISettingsHost
     private ushort _lastFaultStatus;
     private ushort _ackMask;
     private bool _alerting, _testing;
+    private bool _canClear, _clearSent;
     private string _alertMessage = "";
     private DispatcherTimer? _testTimer, _fpsTimer;
     private readonly ShutdownMonitor _shutdown = new();
@@ -158,6 +159,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         _window.ExpandToggleRequested += () => { _settings.Expanded = !_settings.Expanded; ApplySettings(); };
         _window.SettingsRequested += OpenSettings;
         _window.AcknowledgeRequested += Acknowledge;
+        _window.ClearFaultsRequested += ClearDeviceFaults;
         _window.ShutdownCancelRequested += CancelPendingShutdown;
         _window.UpdateDownloadRequested += OpenUpdatePage;
         _window.UpdateDismissed += () => { _update = null; RefreshMenu(); };
@@ -175,6 +177,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         _poller = new DevicePoller(_settings.PollMs);
         _poller.ConnectionChanged += port => Dispatcher.BeginInvoke(() => OnConnectionChanged(port));
         _poller.Sample += s => Dispatcher.BeginInvoke(() => OnSample(s));
+        _poller.ClearFaultsDone += r => Dispatcher.BeginInvoke(() => OnClearFaultsDone(r));
 
         _gpu = new GpuPoller(_settings.PollMs, _settings.GpuIndex);
         _gpu.Sample += g => Dispatcher.BeginInvoke(() => OnGpuSample(g));
@@ -456,6 +459,8 @@ public partial class App : System.Windows.Application, ISettingsHost
         _window.SetTopBar(s.ShowGpuTemp, s.ShowFps);
         _window.SetGraph(_history, s.GraphWindowSeconds, s.PollMs);
         _window.SetGpuGraph(_gpuHistory);
+        _window.SetClearFaultsAllowed(s.CanClearFaults);
+        _canClear = CanClearNow(_last); // the tray menu is refreshed below
         _window.SetExpanded(s.Expanded);
         _window.RefreshTheme();
         if (_poller != null) _poller.IntervalMs = s.PollMs;
@@ -556,6 +561,8 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (port == null)
         {
             _last = null;
+            _clearSent = false;
+            if (_canClear) { _canClear = false; RefreshMenu(); }
             _window?.ShowDisconnected(null);
             // Device rules lose their data and reset; a GPU rule keeps timing.
             EvaluateShutdown(deviceFresh: false, gpuFresh: false);
@@ -776,6 +783,21 @@ public partial class App : System.Windows.Application, ISettingsHost
     // ===== Fault alerts =====
     private void HandleFaults(SensorSnapshot s)
     {
+        if (_clearSent)
+        {
+            // First sample after a clear request: the device sends no reply, so this is the answer.
+            _clearSent = false;
+            if (s.FaultStatus == 0 && s.FaultLog == 0) AppLog.Info("fault", "clear-done", "The device cleared its faults");
+            else AppLog.Warn("fault", "clear-unchanged", "The device still reports faults after the clear request",
+                ("status", $"0x{s.FaultStatus:X4}"), ("log", $"0x{s.FaultLog:X4}"));
+        }
+        bool canClear = CanClearNow(s);
+        if (canClear != _canClear)
+        {
+            _canClear = canClear;
+            RefreshMenu(); // the tray's "Clear device faults" entry follows the device
+        }
+
         ushort active = s.FaultStatus;
         ushort fresh = (ushort)(active & ~_lastFaultStatus);
         _lastFaultStatus = active;
@@ -838,6 +860,45 @@ public partial class App : System.Windows.Application, ISettingsHost
         _ackMask = _last?.FaultStatus ?? 0;
         if (_alerting) AppLog.Info("fault", "acknowledged", "Fault alert acknowledged");
         StopAlert();
+    }
+
+    /// <summary>Clearing is offered only when the user allowed it in Settings and the device reports a fault.</summary>
+    private bool CanClearNow(SensorSnapshot? s) =>
+        _settings.CanClearFaults && s != null && (s.FaultStatus != 0 || s.FaultLog != 0);
+
+    /// <summary>
+    /// Asks the device to clear its faults (widget button and tray menu). The device layer sends nothing
+    /// while a fault the device is set to power the PC off for is active, so this never holds off its shutdown.
+    /// </summary>
+    private void ClearDeviceFaults()
+    {
+        if (_poller == null || _last is not { } s || !CanClearNow(s)) return;
+        AppLog.Info("fault", "clear", "Clear faults requested", ("status", $"0x{s.FaultStatus:X4}"), ("log", $"0x{s.FaultLog:X4}"));
+        _poller.ClearFaults();
+    }
+
+    private void OnClearFaultsDone(ClearFaultsResult r)
+    {
+        _clearSent = r.Outcome == ClearFaultsOutcome.Cleared;
+        string? note = null;
+        switch (r.Outcome)
+        {
+            case ClearFaultsOutcome.NotSent:
+                AppLog.Warn("fault", "clear-failed", "The clear request could not be sent to the device");
+                note = Loc.T("The request could not be sent to the device.");
+                break;
+            case ClearFaultsOutcome.SettingsUnreadable:
+                AppLog.Warn("fault", "clear-refused", "The device's settings could not be read, so nothing was cleared");
+                note = Loc.T("The device's settings could not be read, so nothing was cleared.");
+                break;
+            case ClearFaultsOutcome.LeftAlone:
+                AppLog.Info("fault", "clear-left-alone", "Nothing cleared: active with a device power-off action: " + Names(r.BlockedBy),
+                    ("faults", $"0x{r.BlockedBy:X4}"));
+                note = Loc.F("Nothing was cleared: {0} is active and the device is set to power the PC off for it. AmpTray sends no clear while such a fault is active.", Names(r.BlockedBy));
+                break;
+        }
+        // The press must not look like it did nothing.
+        if (note != null) _tray?.ShowBalloonTip(10000, Loc.T("Clear device faults"), note, Forms.ToolTipIcon.Info);
     }
 
     public void TestAlert()
@@ -914,6 +975,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         }
 
         _ackItem = Item("", Acknowledge);
+        _clearFaultsItem = Item("", ClearDeviceFaults);
         _showItem = Item("", () => SetVisible(!(_window?.IsVisible ?? false)));
         _expandedItem = Item("", () => { _settings.Expanded = !_settings.Expanded; ApplySettings(); });
 
@@ -947,6 +1009,7 @@ public partial class App : System.Windows.Application, ISettingsHost
             _updateItem,
             _cancelShutdownItem,
             _ackItem,
+            _clearFaultsItem,
             _showItem,
             _expandedItem,
             _panelsMenu,
@@ -979,6 +1042,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (_menu == null) return;
         _cancelShutdownItem!.Text = Loc.T("Cancel pending shutdown");
         _ackItem!.Text = Loc.T("Acknowledge fault alert");
+        _clearFaultsItem!.Text = Loc.T("Clear device faults");
         _showItem!.Text = Loc.T("Show widget");
         _expandedItem!.Text = Loc.T("Expanded view");
         _panelsMenu!.Text = Loc.T("Panels");
@@ -1007,6 +1071,7 @@ public partial class App : System.Windows.Application, ISettingsHost
         if (_menu == null) return;
         var s = _settings;
         _ackItem!.Visible = _alerting;
+        _clearFaultsItem!.Visible = _canClear;
         _showItem!.Checked = _window?.IsVisible ?? s.Visible;
         _expandedItem!.Checked = s.Expanded;
         _wiresItem!.Checked = s.ShowWires;

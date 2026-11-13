@@ -75,6 +75,7 @@ public partial class App : Application
         _window.ExpandToggleRequested += () => { _settings.Expanded = !_settings.Expanded; ApplySettings(); };
         _window.SettingsRequested += () => OpenSettings(null);
         _window.AcknowledgeRequested += Acknowledge;
+        _window.ClearFaultsRequested += ClearDeviceFaults;
         _window.ShutdownCancelRequested += CancelPendingShutdown;
         _window.UpdateDownloadRequested += OpenUpdatePage;
         _window.UpdateDismissed += () => { _update = null; RefreshMenu(); };
@@ -95,6 +96,7 @@ public partial class App : Application
         _poller = new DevicePoller(_settings.PollMs);
         _poller.ConnectionChanged += port => Dispatcher.UIThread.Post(() => OnConnectionChanged(port));
         _poller.Sample += s => Dispatcher.UIThread.Post(() => OnSample(s));
+        _poller.ClearFaultsDone += r => Dispatcher.UIThread.Post(() => OnClearFaultsDone(r));
 
         _gpu = new GpuPoller(_settings.PollMs, _settings.GpuIndex);
         _gpu.Sample += g => Dispatcher.UIThread.Post(() => OnGpuSample(g));
@@ -175,6 +177,8 @@ public partial class App : Application
         _window.SetTopBar(s.ShowGpuTemp);
         _window.SetGraph(_history, s.GraphWindowSeconds, s.PollMs);
         _window.SetGpuGraph(_gpuHistory);
+        _window.SetClearFaultsAllowed(s.CanClearFaults);
+        _canClear = CanClearNow(_last); // the tray menu is refreshed below
         _window.SetExpanded(s.Expanded);
         _window.RefreshTheme();
         if (_poller != null) _poller.IntervalMs = s.PollMs;
@@ -228,6 +232,8 @@ public partial class App : Application
         if (port == null)
         {
             _last = null;
+            _clearSent = false;
+            if (_canClear) { _canClear = false; RefreshMenu(); }
             _window?.ShowDisconnected(null);
             // Device rules lose their data and reset; a GPU rule keeps timing.
             EvaluateShutdown(deviceFresh: false, gpuFresh: false);

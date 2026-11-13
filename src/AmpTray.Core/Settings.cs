@@ -44,6 +44,14 @@ public sealed class Settings
     public bool SoundAlarm { get; set; } = true;
     public int AlarmVolume { get; set; } = 60; // percent
 
+    // Clearing the device's faults: off until the user has accepted the risk and switched it on.
+    public bool ClearFaultsRiskAccepted { get; set; }
+    public bool AllowClearFaults { get; set; }
+
+    /// <summary>Whether the widget may offer (and send) a clear of the device's faults. Needs both switches.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool CanClearFaults => ClearFaultsRiskAccepted && AllowClearFaults;
+
     // Logging
     public bool LogEnabled { get; set; }
     public int LogIntervalSeconds { get; set; } // 0 = every sample
@@ -100,6 +108,8 @@ public sealed class Settings
         s.AlarmVolume = Math.Clamp(s.AlarmVolume, 5, 100);
         s.GpuIndex = Math.Max(0, s.GpuIndex);
         s.LogIntervalSeconds = Math.Max(0, s.LogIntervalSeconds);
+        // Clearing faults is never on without the risk having been accepted.
+        if (!s.ClearFaultsRiskAccepted) s.AllowClearFaults = false;
         return s;
     }
 
