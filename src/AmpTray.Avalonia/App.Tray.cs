@@ -86,6 +86,7 @@ public partial class App
             new() { Text = () => Loc.F("Update available: {0}", _update?.Tag ?? ""), Visible = () => _update != null, Click = OpenUpdatePage },
             new() { Text = () => Loc.T("Cancel pending shutdown"), Visible = () => _pending.Count > 0 || _countdown != null || _deferredToService, Click = CancelPendingShutdown },
             new() { Text = () => Loc.T("Acknowledge fault alert"), Visible = () => _alerting, Click = Acknowledge },
+            new() { Text = () => Loc.T("Clear device faults"), Visible = () => _canClear, Click = ClearDeviceFaults },
             new()
             {
                 Text = () => Loc.T("Show widget"),

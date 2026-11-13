@@ -40,7 +40,7 @@
     <Authors>borexola</Authors>
     <Company>borexola</Company>
     <Copyright>Copyright © borexola</Copyright>
-    <Description>Unofficial read-only desktop widget for the Thermal Grizzly WireView Pro II, with NVIDIA GPU stats. Not affiliated with or endorsed by Thermal Grizzly or NVIDIA.</Description>
+    <Description>Unofficial desktop widget for the Thermal Grizzly WireView Pro II, with NVIDIA GPU stats. Read-only unless you explicitly allow clearing device faults. Not affiliated with or endorsed by Thermal Grizzly or NVIDIA.</Description>
     <RepositoryUrl>https://github.com/borexola/AmpTray</RepositoryUrl>
   </PropertyGroup>
 

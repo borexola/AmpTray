@@ -346,8 +346,27 @@ public partial class SettingsWindow : Window
         Segmented(Loc.T("Language"), languages.ToArray(), () => _s.Language, v => _s.Language = v);
 
         Header(Loc.T("Device access"), null);
-        Note(Loc.T("Read-only. The widget only identifies the device and reads its sensors; it never changes device settings, clears faults or touches firmware.") + " " +
+        Note(Loc.T("The widget only identifies the device and reads its sensors; it never changes device settings or touches firmware. The one exception is clearing faults, which stays off unless you allow it below.") + " " +
              Loc.T("The udev rule from install.sh lets members of the dialout group and the signed-in user open /dev/ttyACM*; the widget and the service share the port through a lock file."));
+
+        // Clearing faults is the only request that changes anything on the device: it needs the risk accepted first.
+        Note(Loc.T("Clearing sends the device a command that erases its active and logged faults and redraws its screen. A fault is the device telling you something was wrong with the cable or connector, and that record is gone once it is cleared, so check the cause first. AmpTray is unofficial software that Thermal Grizzly has not tested or endorsed: you send this command at your own risk."), bottom: 8);
+        Note(Loc.T("While a fault that the device itself is set to power the PC off for is active, Clear sends nothing, so it cannot hold off the device's own shutdown. To know which faults those are, it reads the device's settings each time you press it."), bottom: 8);
+        var accept = Switch(_s.ClearFaultsRiskAccepted, Labelled(Loc.T("I understand and accept this risk"), null));
+        var allow = Switch(_s.CanClearFaults, Labelled(Loc.T("Allow clearing device faults"),
+            Loc.T("Shows Clear in the Faults panel and in the tray menu while the device reports a fault.")));
+        allow.IsEnabled = _s.ClearFaultsRiskAccepted;
+        accept.Click += (_, _) =>
+        {
+            _s.ClearFaultsRiskAccepted = accept.IsChecked == true;
+            // Taking the acceptance back also switches clearing off.
+            if (!_s.ClearFaultsRiskAccepted) { _s.AllowClearFaults = false; allow.IsChecked = false; }
+            allow.IsEnabled = _s.ClearFaultsRiskAccepted;
+            Changed();
+        };
+        allow.Click += (_, _) => { _s.AllowClearFaults = allow.IsChecked == true; Changed(); };
+        Page.Children.Add(accept);
+        Page.Children.Add(allow);
     }
 
     // ===== Building blocks =====

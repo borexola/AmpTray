@@ -45,6 +45,32 @@ public class SettingsNormalizeTests
         Assert.Equal(1.0, s.Opacity);
         Assert.Equal(Loc.Auto, s.Language);
         Assert.False(s.LogEnabled);
+        Assert.False(s.ClearFaultsRiskAccepted);
+        Assert.False(s.AllowClearFaults);
+        Assert.False(s.CanClearFaults);
+    }
+
+    [Fact]
+    public void Clearing_faults_needs_the_risk_accepted_and_the_switch_on()
+    {
+        Assert.False(new Settings { ClearFaultsRiskAccepted = true }.CanClearFaults);
+        Assert.False(new Settings { AllowClearFaults = true }.CanClearFaults);
+        Assert.True(new Settings { ClearFaultsRiskAccepted = true, AllowClearFaults = true }.CanClearFaults);
+
+        // A hand-edited file cannot switch clearing on without the acceptance.
+        var edited = Settings.Normalize(new Settings { AllowClearFaults = true });
+        Assert.False(edited.AllowClearFaults);
+        Assert.False(edited.CanClearFaults);
+        Assert.True(Settings.Normalize(new Settings { ClearFaultsRiskAccepted = true, AllowClearFaults = true }).CanClearFaults);
+    }
+
+    [Fact]
+    public void The_derived_clear_permission_is_not_written_to_the_file()
+    {
+        string json = System.Text.Json.JsonSerializer.Serialize(new Settings { ClearFaultsRiskAccepted = true, AllowClearFaults = true });
+        Assert.Contains("\"ClearFaultsRiskAccepted\":true", json);
+        Assert.Contains("\"AllowClearFaults\":true", json);
+        Assert.DoesNotContain("CanClearFaults", json);
     }
 }
 

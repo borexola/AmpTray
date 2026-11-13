@@ -50,6 +50,7 @@ public partial class WidgetWindow : Window
     public event Action? ExpandToggleRequested;
     public event Action? SettingsRequested;
     public event Action? AcknowledgeRequested;
+    public event Action? ClearFaultsRequested;
     public event Action? ResetStatsRequested;
     public event Action? ShutdownCancelRequested;
     public event Action? UpdateDownloadRequested;
@@ -92,6 +93,7 @@ public partial class WidgetWindow : Window
         ExpandButton.Click += (_, _) => ExpandToggleRequested?.Invoke();
         SettingsButton.Click += (_, _) => SettingsRequested?.Invoke();
         AckButton.Click += (_, _) => AcknowledgeRequested?.Invoke();
+        ClearFaultsButton.Click += (_, _) => ClearFaultsRequested?.Invoke();
         ResetStatsButton.Click += (_, _) => ResetStatsRequested?.Invoke();
         ShutdownCancelButton.Click += (_, _) => ShutdownCancelRequested?.Invoke();
         UpdateDownloadButton.Click += (_, _) => UpdateDownloadRequested?.Invoke();
@@ -230,6 +232,8 @@ public partial class WidgetWindow : Window
         GpuLabel.Text = Loc.T("GPU");
         PowerLabel.Text = Loc.T("POWER");
         FaultsLabel.Text = Loc.T("FAULTS");
+        ClearFaultsButton.Content = Loc.T("Clear");
+        ToolTip.SetTip(ClearFaultsButton, Loc.T("Clear the faults stored on the device. A fault whose cause is still present comes straight back. Nothing is cleared while a fault the device powers the PC off for is active."));
         UpdateDownloadButton.Content = Loc.T("Download");
         ToolTip.SetTip(UpdateDismissButton, Loc.T("Dismiss until next launch"));
         if (_update != null) ShowUpdate(_update);
@@ -243,6 +247,15 @@ public partial class WidgetWindow : Window
 
         SetExpanded(_expanded); // also re-renders a live sample
         if (_last == null) ShowDisconnected(null);
+    }
+
+    /// <summary>Whether the Clear button may appear at all (the user allowed it in Settings).</summary>
+    public void SetClearFaultsAllowed(bool allowed)
+    {
+        if (_allowClear == allowed) return;
+        _allowClear = allowed;
+        InvalidateFaults();
+        if (_last != null && _stats != null) ShowSample(_last, _port, _stats);
     }
 
     public void SetPanels(bool wires, bool temps, bool graph, bool faults, bool gpu)
@@ -401,6 +414,7 @@ public partial class WidgetWindow : Window
             t.Max.Text = "";
         }
         InvalidateFaults();
+        ClearFaultsButton.IsVisible = false;
         FaultPanel.Children.Clear();
         FaultPanel.Children.Add(Chip(Loc.T("No data"), "TextMuted", "TextMuted"));
         foreach (var (dot, state) in _faultCells)
@@ -500,6 +514,7 @@ public partial class WidgetWindow : Window
     }
 
     private int _faultKey = -1;
+    private bool _allowClear;
 
     /// <summary>Forces the next sample to rebuild the fault chips (layout, language or theme changed).</summary>
     private void InvalidateFaults() => _faultKey = -1;
@@ -513,6 +528,7 @@ public partial class WidgetWindow : Window
 
         var active = SensorSnapshot.Decode(s.FaultStatus).ToList();
         var loggedOnly = SensorSnapshot.Decode((ushort)(s.FaultLog & ~s.FaultStatus)).ToList();
+        ClearFaultsButton.IsVisible = _allowClear && (active.Count > 0 || loggedOnly.Count > 0);
 
         // Compact: chips.
         FaultPanel.Children.Clear();
@@ -521,7 +537,9 @@ public partial class WidgetWindow : Window
         foreach (var f in loggedOnly)
         {
             var chip = Chip(SensorSnapshot.Describe(f) + " · " + Loc.T("logged"), "WarnBrush", "WarnBrush");
-            ToolTip.SetTip(chip, Loc.T("Occurred earlier and is latched in the device log. Clear it in the official WireView app."));
+            ToolTip.SetTip(chip, _allowClear
+                ? Loc.T("Occurred earlier and is latched in the device log until you press Clear.")
+                : Loc.T("Occurred earlier and is latched in the device log. Clearing it from the widget is off; you can allow it in Settings."));
             FaultPanel.Children.Add(chip);
         }
         if (active.Count == 0 && loggedOnly.Count == 0)

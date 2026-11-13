@@ -62,7 +62,7 @@
 
     <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder" Guid="C4E7D1A2-9B3F-4F6E-8D2A-5E1C7B9A3F60">
       <Shortcut Id="StartMenuEntry" Name="AmpTray"
-                Description="Read-only WireView Pro II desktop widget"
+                Description="WireView Pro II desktop widget (read-only unless you allow clearing faults)"
                 Target="[INSTALLFOLDER]AmpTray.exe" WorkingDirectory="INSTALLFOLDER" Icon="AppIcon.ico" />
       <RegistryValue Root="HKCU" Key="Software\borexola\AmpTray" Name="StartMenuShortcut"
                      Type="integer" Value="1" KeyPath="yes" />
@@ -120,7 +120,7 @@
                  Text="Choose the language AmpTray will use. You can change it later in Settings." />
 
         <Control Id="Intro" Type="Text" X="25" Y="60" Width="320" Height="30" NoPrefix="yes"
-                 Text="AmpTray is an unofficial, read-only desktop widget for the Thermal Grizzly WireView Pro II. It installs to Program Files and adds a Start Menu entry." />
+                 Text="AmpTray is an unofficial desktop widget for the Thermal Grizzly WireView Pro II, read-only unless you explicitly allow it to clear device faults. It installs to Program Files and adds a Start Menu entry." />
 
         <Control Id="ServiceCheck" Type="CheckBox" Property="INSTALLSERVICE" CheckBoxValue="1" X="25" Y="212" Width="330" Height="17"
                  Text="Also keep monitoring before anyone signs in (background service)" />
